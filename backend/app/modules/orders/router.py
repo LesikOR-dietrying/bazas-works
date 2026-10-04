@@ -19,6 +19,7 @@ from app.modules.orders.schemas import (
     OrderStatusWrite,
     OrderWrite,
     ReleasedRevisionOption,
+    RequirementPreviewRow,
     RequirementRead,
     VariantRead,
     VariantWrite,
@@ -30,6 +31,16 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 @router.get("/revision-options", response_model=list[ReleasedRevisionOption])
 def revision_options(session: Database, user: CurrentUser) -> object:
     return service.released_revisions(session, user)
+
+
+@router.get("/requirements/preview", response_model=list[RequirementPreviewRow])
+def preview(
+    product_revision_id: UUID,
+    session: Database,
+    user: CurrentUser,
+    quantity: Annotated[int, Query(ge=1)] = 1,
+) -> object:
+    return service.requirement_preview(session, user, product_revision_id, quantity)
 
 
 @router.get("/customers", response_model=list[CustomerRead])
@@ -61,7 +72,7 @@ def read(order_id: UUID, session: Database, user: CurrentUser) -> object:
 
 @router.post("/{order_id}/status", response_model=OrderRead)
 def status(order_id: UUID, data: OrderStatusWrite, session: Database, user: CurrentUser) -> object:
-    return service.transition_order(session, order_id, user, data.status)
+    return service.transition_order(session, order_id, user, data)
 
 
 @router.get("/{order_id}/items", response_model=list[ItemRead])

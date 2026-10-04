@@ -180,11 +180,14 @@ describe('authenticated shell', () => {
   })
   it('redirects the old order URL to the orders section', async () => {
     const manager = { ...employee, role: 'MANAGER', roles: ['PRODUCTION_MANAGER'], capabilities: ['VIEW_PRODUCTION', 'MANAGE_ORDERS'] }
-    const order = { id: 'd41c1e54-2cf7-4bc4-85ef-d9756558f8ab', order_number: 'ORD-LEGACY', customer_id: '91c7b840-d713-4aac-a220-7bfc7909cfd6', customer_name: 'Замовник', recipient: '', destination: '', order_date: '2026-10-04', deadline: null, notes: '', status: 'DRAFT', created_by_id: employee.id, created_at: '2026-10-04T00:00:00Z', updated_at: '2026-10-04T00:00:00Z' }
+    const order = { id: 'd41c1e54-2cf7-4bc4-85ef-d9756558f8ab', order_number: 'ORD-LEGACY', customer_id: '91c7b840-d713-4aac-a220-7bfc7909cfd6', customer_name: 'Замовник', recipient: '', destination: '', order_date: '2026-10-04', deadline: null, notes: '', status: 'DRAFT', draft_version: 1, total_quantity: 0, product_summary: '', created_by_id: employee.id, created_at: '2026-10-04T00:00:00Z', updated_at: '2026-10-04T00:00:00Z' }
     vi.stubGlobal('fetch', vi.fn(async (path: string) => path.endsWith('/auth/me') ? response(manager) : path.endsWith(`/orders/${order.id}/items`) ? response([]) : path.endsWith(`/orders/${order.id}`) ? response(order) : path.endsWith('/orders/revision-options') ? response([]) : path.endsWith(`/orders/${order.id}/requirements`) || path.endsWith(`/orders/${order.id}/materials`) ? response([]) : response({ status: 'ok' })))
     renderApp(`/production/orders/${order.id}`)
     expect(await screen.findByRole('heading', { name: 'ORD-LEGACY' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '← До замовлень' })).toHaveAttribute('href', '/orders')
+    for (const tab of ['Огляд', 'Вироби', 'Комплектуючі', 'Закупівлі', 'Виробництво', 'Відвантаження']) expect(screen.getByRole('button', { name: tab })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Відвантаження' }))
+    expect(screen.getByText('Облік відвантаження ще не реалізований.')).toBeInTheDocument()
   })
   it('leaves protected content immediately after logout', async () => {
     let loggedIn = true

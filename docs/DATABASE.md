@@ -1,6 +1,6 @@
 # Цільова модель PostgreSQL
 
-> Цей файл фіксує **поточну реалізовану схему `0001–0012`**. Цільова модель і
+> Цей файл фіксує **поточну реалізовану схему `0001–0013`**. Цільова модель і
 > подальші межі описані в [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 Реалізовано users/auth_sessions (0002), projects/project_members/tasks (0003),
@@ -169,6 +169,10 @@ allocations must match the requirement component and cannot exceed the procureme
 Order status transitions are explicit. A DRAFT can be confirmed only after it has at least one
 item and every active variant is RELEASED. Material quantities are calculated by the backend;
 clients cannot submit requirement or missing values.
+
+Migration `0013_order_draft_version` adds a positive `orders.draft_version` with a compatible
+default for existing rows. Every composition or deviation change increments it. Confirmation
+compares the client's expected value under a row lock and rejects stale drafts.
 
 ## Phase 5 production execution
 

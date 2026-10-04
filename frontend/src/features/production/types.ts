@@ -1,13 +1,15 @@
 export type OrderStatus = 'DRAFT' | 'CONFIRMED' | 'MATERIALS' | 'PRODUCTION' | 'READY' | 'PARTIALLY_SHIPPED' | 'SHIPPED' | 'CANCELLED'
 export type VariantStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'RELEASED'
 export interface Customer { id: string; name: string; contact_details: string; notes: string }
-export interface Order { id: string; order_number: string; customer_id: string; customer_name: string; recipient: string; destination: string; order_date: string; deadline: string | null; status: OrderStatus; notes: string; created_at: string }
-export interface RevisionOption { id: string; product_id: string; product_name: string; revision_code: string }
+export interface Order { id: string; order_number: string; customer_id: string; customer_name: string; recipient: string; destination: string; order_date: string; deadline: string | null; status: OrderStatus; notes: string; draft_version: number; total_quantity: number; product_summary: string; created_at: string; updated_at: string }
+export interface RevisionOption { id: string; product_id: string; product_name: string; variant_id: string; variant_name: string; revision_code: string }
 export interface OrderItem { id: string; order_id: string; product_id: string; product_revision_id: string; product_name: string; revision_code: string; quantity: number; required_date: string | null; notes: string }
 export interface OrderVariant { id: string; order_item_id: string; name: string; quantity: number; is_standard: boolean; status: VariantStatus; notes: string }
 export interface Deviation { id: string; variant_id: string; original_bom_item_id: string; replacement_component_id: string; quantity_per_product: string; reason: string; approved_at: string | null }
 export interface Requirement { id: string; component_id: string; component_name: string; required_quantity: string }
 export interface MaterialSummary { component_id: string; required: string; available: string; reserved: string; ordered: string; in_transit: string; missing: string }
+export interface RequirementPreviewAlternative { component_id: string; component_name: string; component_sku: string | null; notes: string }
+export interface RequirementPreviewRow { bom_item_id: string; position: string; component_id: string; component_name: string; component_sku: string | null; quantity_per_product: string; total_quantity: string; uom_id: string; uom_code: string; alternatives: RequirementPreviewAlternative[] }
 export interface BomItem { id: string; component_id: string; quantity: string; position: string }
 export interface ComponentOption { id: string; name: string; sku: string | null }
 export interface Supplier { id: string; name: string }

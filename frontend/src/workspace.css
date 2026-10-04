@@ -19,6 +19,7 @@
 .tabs { display: flex; gap: 6px; overflow-x: auto; border-bottom: 1px solid #d6dfce; margin: 18px 0; }
 .tabs button { white-space: nowrap; padding: 10px 15px; font-size: 13px; border-bottom: 3px solid transparent; color: #76836d; }
 .tabs button.selected { border-bottom-color: #426540; color: #294d32; font-weight: 600; }
+.substitution-row td { background: #f5f8f2; color: #53624f; font-size: 12px; }
 .participants { border: 1px solid #dce4d5; border-radius: 7px; padding: 17px; display: flex; flex-wrap: wrap; gap: 17px; }
 .participants legend { padding-inline: 7px; font-size: 14px; }
 .participants p { flex-basis: 100%; margin: 0; }

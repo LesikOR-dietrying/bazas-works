@@ -1,7 +1,7 @@
 # BAZA — цільова архітектура R&D і виробництва
 
-> Статус: **Phase 0 затверджено; доменні Phase 1–5 та етапи rework 0–3 реалізовано**.
-> Документ описує цільову модель за `CODEX_PRODUCT_SPEC.md`. Поточна additive схема `0001–0012`
+> Статус: **Phase 0 затверджено; доменні Phase 1–5 та етапи rework 0–4 реалізовано**.
+> Документ описує цільову модель за `CODEX_PRODUCT_SPEC.md`. Поточна additive схема `0001–0013`
 > зберігає сумісність із наявними даними; наступними є етапи якості, відвантаження та складу.
 
 ## Архітектурне рішення
@@ -181,6 +181,8 @@ reference only released revisions.
 - `Customer`; `Order` with human order number, recipient, destination, dates,
   status, notes and creator.
 - `OrderItem`: product, exact released revision, integer quantity/required date.
+- `Order.draft_version`: optimistic revision of the editable composition. Confirmation
+  rejects a stale client revision so concurrent managers must review each other's changes.
 - `OrderVariant`: quantity partition. A standard variant is automatic; active
   variant quantities must equal line quantity before release.
 - `VariantDeviation`: original BOM row, replacement component, quantity per

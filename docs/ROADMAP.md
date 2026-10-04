@@ -1,7 +1,7 @@
 # План реалізації за CODEX_PRODUCT_SPEC
 
-> Статус: доменні Phase 0–5 та етапи rework 0–3 реалізовано. Поточний застосунок
-> і migrations `0001–0012` є робочим additive baseline.
+> Статус: доменні Phase 0–5 та етапи rework 0–4 реалізовано. Поточний застосунок
+> і migrations `0001–0013` є робочим additive baseline.
 
 ## Phase 0 — Architecture (proposal complete)
 
@@ -175,6 +175,8 @@ Acceptance:
 - Releasing a complete variant partition creates immutable material-requirement snapshots.
 - Supplier, procurement and requirement-allocation records feed the material readiness view.
 - Production UI shows order status, 90/10-style partitions, material progress and procurement.
+- The order editor selects model → catalog variant → released revision, previews the multiplied
+  BOM without writes and rejects confirmation from a stale concurrent draft.
 
 ## Phase 5 - Production execution and worker UX (implemented)
 

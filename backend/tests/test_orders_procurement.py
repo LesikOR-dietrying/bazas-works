@@ -41,6 +41,7 @@ def test_order_variants_deviation_requirements_and_procurement(
     headers = sign_in(auth_client, "MANAGER")
     original = _component(auth_client, headers, "Phase 4 original")
     replacement = _component(auth_client, headers, "Phase 4 replacement")
+    ground_component = _component(auth_client, headers, "Phase 4 ground component")
     categories = auth_client.get("/api/products/categories").json()
     product_response = auth_client.post(
         "/api/products",
@@ -64,13 +65,56 @@ def test_order_variants_deviation_requirements_and_procurement(
     bom_response = auth_client.post(
         f"/api/products/revisions/{revision['id']}/bom",
         headers=headers,
-        json={"component_id": original["id"], "quantity": "2", "position": "M1"},
+        json={"component_id": original["id"], "quantity": "4", "position": "M1"},
     )
     assert bom_response.status_code == 201, bom_response.text
     bom = bom_response.json()
     for status in ("IN_REVIEW", "RELEASED"):
         response = auth_client.post(
             f"/api/products/revisions/{revision['id']}/status",
+            headers=headers,
+            json={"status": status},
+        )
+        assert response.status_code == 200, response.text
+
+    preview = auth_client.get(
+        "/api/orders/requirements/preview",
+        params={"product_revision_id": revision["id"], "quantity": 100},
+    )
+    assert preview.status_code == 200, preview.text
+    assert Decimal(preview.json()[0]["total_quantity"]) == Decimal("400")
+
+    ground_product_response = auth_client.post(
+        "/api/products",
+        headers=headers,
+        json={
+            "code": "PHASE4-GROUND",
+            "name": "Phase 4 Ground Station",
+            "category_id": categories[0]["id"],
+            "description": "Second order line",
+            "lifecycle": "DEVELOPMENT",
+            "tracking_mode": "SERIAL",
+        },
+    )
+    ground_product = ground_product_response.json()
+    ground_revision = auth_client.post(
+        f"/api/products/{ground_product['id']}/revisions",
+        headers=headers,
+        json={"revision_code": "R1", "currency": "UAH"},
+    ).json()
+    ground_bom = auth_client.post(
+        f"/api/products/revisions/{ground_revision['id']}/bom",
+        headers=headers,
+        json={
+            "component_id": ground_component["id"],
+            "quantity": "2",
+            "position": "GS1",
+        },
+    )
+    assert ground_bom.status_code == 201, ground_bom.text
+    for status in ("IN_REVIEW", "RELEASED"):
+        response = auth_client.post(
+            f"/api/products/revisions/{ground_revision['id']}/status",
             headers=headers,
             json={"status": status},
         )
@@ -102,6 +146,19 @@ def test_order_variants_deviation_requirements_and_procurement(
     )
     assert item_response.status_code == 201, item_response.text
     item = item_response.json()
+    stale_version = auth_client.get(f"/api/orders/{order['id']}").json()["draft_version"]
+
+    ground_item_response = auth_client.post(
+        f"/api/orders/{order['id']}/items",
+        headers=headers,
+        json={"product_revision_id": ground_revision["id"], "quantity": 1},
+    )
+    assert ground_item_response.status_code == 201, ground_item_response.text
+    ground_item = ground_item_response.json()
+    ground_release = auth_client.post(
+        f"/api/orders/items/{ground_item['id']}/release-variants", headers=headers
+    )
+    assert ground_release.status_code == 200, ground_release.text
 
     split_response = auth_client.post(
         f"/api/orders/items/{item['id']}/variants",
@@ -119,12 +176,16 @@ def test_order_variants_deviation_requirements_and_procurement(
         json={
             "original_bom_item_id": bom["id"],
             "replacement_component_id": replacement["id"],
-            "quantity_per_product": "3",
+            "quantity_per_product": "4",
             "reason": "Validated replacement",
         },
     )
     assert deviation_response.status_code == 201, deviation_response.text
     deviation = deviation_response.json()
+    pending_release = auth_client.post(
+        f"/api/orders/items/{item['id']}/release-variants", headers=headers
+    )
+    assert pending_release.status_code == 409
     approval = auth_client.post(
         f"/api/orders/deviations/{deviation['id']}/approve", headers=headers
     )
@@ -137,17 +198,63 @@ def test_order_variants_deviation_requirements_and_procurement(
     assert requirements_response.status_code == 200, requirements_response.text
     requirements = requirements_response.json()
     by_component = {row["component_id"]: Decimal(row["required_quantity"]) for row in requirements}
-    assert by_component[original["id"]] == Decimal("180")
-    assert by_component[replacement["id"]] == Decimal("30")
+    assert by_component[original["id"]] == Decimal("360")
+    assert by_component[replacement["id"]] == Decimal("40")
+    assert by_component[ground_component["id"]] == Decimal("2")
     base_bom = db.scalar(
         select(ProductRevisionBomItem).where(ProductRevisionBomItem.id == bom["id"])
     )
     assert base_bom is not None
     assert str(base_bom.component_id) == original["id"]
-    assert base_bom.quantity == Decimal("2")
+    assert base_bom.quantity == Decimal("4")
 
+    cloned = auth_client.post(
+        f"/api/products/revisions/{revision['id']}/clone",
+        headers=headers,
+        json={"revision_code": "R2"},
+    )
+    assert cloned.status_code == 201, cloned.text
+    cloned_revision = cloned.json()
+    cloned_bom = auth_client.get(f"/api/products/revisions/{cloned_revision['id']}/bom").json()[0]
+    updated_bom = auth_client.put(
+        f"/api/products/revisions/{cloned_revision['id']}/bom/{cloned_bom['id']}",
+        headers=headers,
+        json={
+            "component_id": original["id"],
+            "quantity": "5",
+            "uom_id": cloned_bom["uom_id"],
+            "position": cloned_bom["position"],
+            "sequence": cloned_bom["sequence"],
+            "required": cloned_bom["required"],
+            "notes": cloned_bom["notes"],
+        },
+    )
+    assert updated_bom.status_code == 200, updated_bom.text
+    for status in ("IN_REVIEW", "RELEASED"):
+        response = auth_client.post(
+            f"/api/products/revisions/{cloned_revision['id']}/status",
+            headers=headers,
+            json={"status": status},
+        )
+        assert response.status_code == 200, response.text
+    unchanged = auth_client.get(f"/api/orders/{order['id']}/requirements").json()
+    unchanged_by_component = {
+        row["component_id"]: Decimal(row["required_quantity"]) for row in unchanged
+    }
+    assert unchanged_by_component[original["id"]] == Decimal("360")
+    assert unchanged_by_component[replacement["id"]] == Decimal("40")
+
+    stale_confirm = auth_client.post(
+        f"/api/orders/{order['id']}/status",
+        headers=headers,
+        json={"status": "CONFIRMED", "expected_draft_version": stale_version},
+    )
+    assert stale_confirm.status_code == 409
+    current_version = auth_client.get(f"/api/orders/{order['id']}").json()["draft_version"]
     confirm = auth_client.post(
-        f"/api/orders/{order['id']}/status", headers=headers, json={"status": "CONFIRMED"}
+        f"/api/orders/{order['id']}/status",
+        headers=headers,
+        json={"status": "CONFIRMED", "expected_draft_version": current_version},
     )
     assert confirm.status_code == 200, confirm.text
     assert confirm.json()["status"] == "CONFIRMED"
@@ -165,7 +272,7 @@ def test_order_variants_deviation_requirements_and_procurement(
         json={
             "component_id": replacement["id"],
             "supplier_id": supplier["id"],
-            "quantity": "30",
+            "quantity": "40",
             "currency": "UAH",
             "status": "ORDERED",
         },
@@ -195,13 +302,13 @@ def test_order_variants_deviation_requirements_and_procurement(
     allocation = auth_client.post(
         f"/api/procurement/{procurement['id']}/allocations",
         headers=headers,
-        json={"requirement_id": str(replacement_requirement.id), "quantity": "30"},
+        json={"requirement_id": str(replacement_requirement.id), "quantity": "40"},
     )
     assert allocation.status_code == 201, allocation.text
     materials = auth_client.get(f"/api/orders/{order['id']}/materials").json()
     replacement_summary = next(row for row in materials if row["component_id"] == replacement["id"])
     assert Decimal(replacement_summary["ordered"]) == Decimal("0")
-    assert Decimal(replacement_summary["in_transit"]) == Decimal("30")
+    assert Decimal(replacement_summary["in_transit"]) == Decimal("40")
     assert Decimal(replacement_summary["missing"]) == Decimal("0")
 
 

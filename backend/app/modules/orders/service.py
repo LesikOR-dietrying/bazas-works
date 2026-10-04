@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import DomainError
 from app.core.pagination import Page, paginate, search_pattern
-from app.modules.components.models import Component
+from app.modules.components.models import Component, UnitOfMeasure
 from app.modules.orders.models import (
     Customer,
     DeviationTest,
@@ -26,7 +26,10 @@ from app.modules.orders.schemas import (
     ItemWrite,
     MaterialSummary,
     OrderFilters,
+    OrderStatusWrite,
     OrderWrite,
+    RequirementPreviewAlternative,
+    RequirementPreviewRow,
     VariantWrite,
 )
 from app.modules.procurement.models import (
@@ -34,7 +37,12 @@ from app.modules.procurement.models import (
     ProcurementRecord,
     ProcurementStatus,
 )
-from app.modules.products.models import ProductRevision, ProductRevisionBomItem, RevisionStatus
+from app.modules.products.models import (
+    BomApprovedAlternative,
+    ProductRevision,
+    ProductRevisionBomItem,
+    RevisionStatus,
+)
 from app.modules.users.models import User
 from app.modules.users.permissions import Capability, require_capability
 
@@ -55,6 +63,16 @@ def _commit(session: Session, message: str) -> None:
         raise DomainError(409, message) from None
 
 
+def _bump_draft_version(session: Session, order_id: UUID) -> Order:
+    order = session.scalar(select(Order).where(Order.id == order_id).with_for_update(of=Order))
+    if order is None:
+        raise DomainError(404, "Замовлення не знайдено.")
+    if order.status != OrderStatus.DRAFT:
+        raise DomainError(409, "Склад замовлення змінюється лише в чернетці.")
+    order.draft_version += 1
+    return order
+
+
 def customers(session: Session, user: User) -> list[Customer]:
     _view(user)
     return list(session.scalars(select(Customer).order_by(Customer.name)))
@@ -69,6 +87,53 @@ def released_revisions(session: Session, user: User) -> list[ProductRevision]:
             .order_by(ProductRevision.released_at.desc(), ProductRevision.id)
         )
     )
+
+
+def requirement_preview(
+    session: Session, user: User, revision_id: UUID, quantity: int
+) -> list[RequirementPreviewRow]:
+    _view(user)
+    revision = session.get(ProductRevision, revision_id)
+    if revision is None or revision.status != RevisionStatus.RELEASED:
+        raise DomainError(422, "Оберіть затверджену версію продукції.")
+    bom_rows = session.execute(
+        select(ProductRevisionBomItem, Component, UnitOfMeasure)
+        .join(Component, Component.id == ProductRevisionBomItem.component_id)
+        .join(UnitOfMeasure, UnitOfMeasure.id == ProductRevisionBomItem.uom_id)
+        .where(ProductRevisionBomItem.revision_id == revision_id)
+        .order_by(ProductRevisionBomItem.sequence, ProductRevisionBomItem.id)
+    ).all()
+    result: list[RequirementPreviewRow] = []
+    for bom, component, uom in bom_rows:
+        alternatives = session.execute(
+            select(BomApprovedAlternative, Component)
+            .join(Component, Component.id == BomApprovedAlternative.component_id)
+            .where(BomApprovedAlternative.bom_item_id == bom.id)
+            .order_by(Component.name)
+        ).all()
+        result.append(
+            RequirementPreviewRow(
+                bom_item_id=bom.id,
+                position=bom.position,
+                component_id=component.id,
+                component_name=component.name,
+                component_sku=component.sku,
+                quantity_per_product=bom.quantity,
+                total_quantity=bom.quantity * quantity,
+                uom_id=uom.id,
+                uom_code=uom.code,
+                alternatives=[
+                    RequirementPreviewAlternative(
+                        component_id=alternative.id,
+                        component_name=alternative.name,
+                        component_sku=alternative.sku,
+                        notes=link.notes,
+                    )
+                    for link, alternative in alternatives
+                ],
+            )
+        )
+    return result
 
 
 def create_customer(session: Session, user: User, data: CustomerWrite) -> Customer:
@@ -148,6 +213,7 @@ def add_item(session: Session, order_id: UUID, user: User, data: ItemWrite) -> O
             status=VariantStatus.DRAFT,
         )
     )
+    order.draft_version += 1
     _commit(session, "Такий рядок вже існує.")
     session.refresh(row)
     return row
@@ -169,7 +235,9 @@ def split_variant(session: Session, item_id: UUID, user: User, data: VariantWrit
     item = session.get(OrderItem, item_id)
     if item is None:
         raise DomainError(404, "Рядок замовлення не знайдено.")
-    get_order(session, item.order_id, user, lock=True)
+    order = get_order(session, item.order_id, user, lock=True)
+    if order.status != OrderStatus.DRAFT:
+        raise DomainError(409, "Варіанти змінюються лише в чернетці замовлення.")
     standard = session.scalar(
         select(OrderVariant)
         .where(OrderVariant.order_item_id == item_id, OrderVariant.is_standard)
@@ -184,6 +252,7 @@ def split_variant(session: Session, item_id: UUID, user: User, data: VariantWrit
     standard.quantity -= data.quantity
     row = OrderVariant(order_item_id=item_id, status=VariantStatus.DRAFT, **data.model_dump())
     session.add(row)
+    order.draft_version += 1
     _commit(session, "Назва варіанта вже використовується.")
     session.refresh(row)
     return row
@@ -209,6 +278,7 @@ def add_deviation(
     session.flush()
     for test_id in data.test_ids:
         session.add(DeviationTest(deviation_id=row.id, test_id=test_id))
+    _bump_draft_version(session, item.order_id)
     _commit(session, "Заміна для цього BOM row вже існує.")
     session.refresh(row)
     return row
@@ -232,7 +302,22 @@ def approve_deviation(
         row.approved_at = datetime.now(UTC)
         variant.status = VariantStatus.APPROVED
     else:
+        standard = session.scalar(
+            select(OrderVariant)
+            .where(
+                OrderVariant.order_item_id == variant.order_item_id,
+                OrderVariant.is_standard,
+            )
+            .with_for_update()
+        )
+        if standard is None:
+            raise DomainError(409, "Стандартний варіант замовлення не знайдено.")
+        standard.quantity += variant.quantity
         variant.status = VariantStatus.REJECTED
+    item = session.get(OrderItem, variant.order_item_id)
+    if item is None:
+        raise DomainError(404, "Рядок замовлення не знайдено.")
+    _bump_draft_version(session, item.order_id)
     session.commit()
     session.refresh(row)
     return row
@@ -251,7 +336,7 @@ def deviations(session: Session, variant_id: UUID, user: User) -> list[VariantDe
     )
 
 
-def transition_order(session: Session, order_id: UUID, user: User, target: OrderStatus) -> Order:
+def transition_order(session: Session, order_id: UUID, user: User, data: OrderStatusWrite) -> Order:
     _manage(user)
     order = get_order(session, order_id, user, lock=True)
     allowed = {
@@ -259,9 +344,18 @@ def transition_order(session: Session, order_id: UUID, user: User, target: Order
         OrderStatus.CONFIRMED: {OrderStatus.MATERIALS, OrderStatus.CANCELLED},
         OrderStatus.MATERIALS: {OrderStatus.CANCELLED},
     }
+    target = data.status
     if target not in allowed.get(OrderStatus(order.status), set()):
         raise DomainError(409, "Недопустимий перехід статусу замовлення.")
     if target == OrderStatus.CONFIRMED:
+        if (
+            data.expected_draft_version is None
+            or data.expected_draft_version != order.draft_version
+        ):
+            raise DomainError(
+                409,
+                "Чернетку замовлення змінив інший користувач. Оновіть сторінку та перевірте склад.",
+            )
         item_rows = list(session.scalars(select(OrderItem).where(OrderItem.order_id == order.id)))
         if not item_rows:
             raise DomainError(409, "Додайте хоча б один рядок замовлення.")
@@ -282,6 +376,7 @@ def release_variants(session: Session, item_id: UUID, user: User) -> list[OrderV
     item = session.get(OrderItem, item_id)
     if item is None:
         raise DomainError(404, "Рядок замовлення не знайдено.")
+    _bump_draft_version(session, item.order_id)
     rows = variants(session, item_id, user)
     active = [r for r in rows if r.status != VariantStatus.REJECTED]
     if sum(r.quantity for r in active) != item.quantity:

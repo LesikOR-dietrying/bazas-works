@@ -35,7 +35,10 @@ class OrderRead(OrderWrite):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     status: OrderStatus
+    draft_version: int
     customer_name: str
+    total_quantity: int
+    product_summary: str
     created_by_id: UUID
     created_at: datetime
     updated_at: datetime
@@ -48,6 +51,7 @@ class OrderFilters(ListParams):
 
 class OrderStatusWrite(BaseModel):
     status: OrderStatus
+    expected_draft_version: int | None = Field(default=None, ge=1)
 
 
 class ItemWrite(BaseModel):
@@ -137,4 +141,26 @@ class ReleasedRevisionOption(BaseModel):
     id: UUID
     product_id: UUID
     product_name: str
+    variant_id: UUID
+    variant_name: str
     revision_code: str
+
+
+class RequirementPreviewAlternative(BaseModel):
+    component_id: UUID
+    component_name: str
+    component_sku: str | None
+    notes: str
+
+
+class RequirementPreviewRow(BaseModel):
+    bom_item_id: UUID
+    position: str
+    component_id: UUID
+    component_name: str
+    component_sku: str | None
+    quantity_per_product: Decimal
+    total_quantity: Decimal
+    uom_id: UUID
+    uom_code: str
+    alternatives: list[RequirementPreviewAlternative]

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
@@ -57,6 +59,7 @@ class Order(Identity, Timestamps, Base):
     __table_args__ = (
         UniqueConstraint("order_number", name="uq_orders_number"),
         CheckConstraint("length(trim(order_number)) > 0", name="number_nonempty"),
+        CheckConstraint("draft_version > 0", name="draft_version_positive"),
         CheckConstraint(
             "status IN ('DRAFT','CONFIRMED','MATERIALS','PRODUCTION','READY',"
             "'PARTIALLY_SHIPPED','SHIPPED','CANCELLED')",
@@ -76,12 +79,24 @@ class Order(Identity, Timestamps, Base):
         String(30), default=OrderStatus.DRAFT, server_default=OrderStatus.DRAFT, index=True
     )
     notes: Mapped[str] = mapped_column(Text, default="", server_default="")
+    draft_version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     created_by_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     customer: Mapped[Customer] = relationship(lazy="joined")
+    items: Mapped[list[OrderItem]] = relationship(lazy="selectin")
 
     @property
     def customer_name(self) -> str:
         return self.customer.name
+
+    @property
+    def total_quantity(self) -> int:
+        return sum(item.quantity for item in self.items)
+
+    @property
+    def product_summary(self) -> str:
+        return ", ".join(
+            f"{item.product.name} · {item.product_revision.variant.name}" for item in self.items
+        )
 
 
 class OrderItem(Identity, Timestamps, Base):
