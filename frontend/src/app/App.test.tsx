@@ -111,10 +111,22 @@ describe('authenticated shell', () => {
     vi.stubGlobal('fetch', vi.fn(async (path: string) => path.endsWith('/auth/me') ? response(manager) : path.includes('/production/queue?') ? response(queue) : response({ status: 'ok' })))
     renderApp('/production')
     expect(await screen.findByRole('heading', { name: 'Виробництво' })).toBeInTheDocument()
-    expect(await screen.findByRole('link', { name: 'ORD-RUN' })).toHaveAttribute('href', `/orders/${queue.items[0].order_id}`)
+    expect(await screen.findByRole('link', { name: 'ORD-RUN' })).toHaveAttribute('href', `/production/orders/${queue.items[0].order_id}/execution`)
     expect(screen.getByRole('link', { name: 'UNIT-001' })).toHaveAttribute('href', `/my-work/items/${queue.items[0].current_item_id}`)
     expect(screen.getByText('12 / 20 · 60%')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Нове замовлення' })).not.toBeInTheDocument()
+  })
+  it('keeps active operations and labels inside the production flow', async () => {
+    const manager = { ...employee, role: 'MANAGER', roles: ['PRODUCTION_MANAGER'], capabilities: ['VIEW_PRODUCTION', 'MANAGE_ORDERS'] }
+    const orderId = 'd41c1e54-2cf7-4bc4-85ef-d9756558f8ab'
+    const item = { id: '7ed6fb59-350e-4d2c-8b52-c61cc0c2c457', identifier: 'UNIT-001', tracking_mode: 'SERIAL', quantity: 1, variant_id: 'variant-id', variant_name: 'Стандартна', product_name: 'БПЛА', revision_code: 'R1', order_number: 'ORD-RUN', qr_value: 'UNIT-001' }
+    const execution = { id: 'execution-id', production_item_id: item.id, stage_id: 'stage-id', stage_code: 'ASSEMBLY', stage_name: 'Складання', planned_quantity: 1, completed_quantity: 0, status: 'READY', assigned_user_id: null, started_at: null, completed_at: null, result_note: '' }
+    vi.stubGlobal('fetch', vi.fn(async (path: string) => path.endsWith('/auth/me') ? response(manager) : path.endsWith(`/production/orders/${orderId}/items`) ? response([item]) : path.endsWith(`/production/orders/${orderId}/progress`) ? response({ order_id: orderId, completed: 0, total: 1, percent: 0, stages: [{ stage_code: 'ASSEMBLY', stage_name: 'Складання', completed: 0, total: 1 }] }) : path.endsWith(`/production/orders/${orderId}/work`) ? response([{ item, execution }]) : path.endsWith('/users/options') ? response([]) : response({ status: 'ok' })))
+    renderApp(`/production/orders/${orderId}/execution`)
+    expect(await screen.findByRole('heading', { name: 'ORD-RUN' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Активні операції' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'UNIT-001' })).toHaveAttribute('href', `/my-work/items/${item.id}`)
+    expect(screen.getByRole('button', { name: 'Друкувати мітки' })).toBeInTheDocument()
   })
   it('retries an unavailable backend', async () => {
     let healthy = false

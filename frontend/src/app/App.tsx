@@ -27,6 +27,7 @@ import { BranchDetail } from '../features/rnd/BranchDetail'
 import { ProductsPage } from '../features/products/ProductsPage'
 import { ProductDetail } from '../features/products/ProductDetail'
 import { ProductionPage } from '../features/production/ProductionPage'
+import { ProductionOrderDetail } from '../features/production/ProductionOrderDetail'
 import { OrdersPage } from '../features/production/OrdersPage'
 import { OrderDetail } from '../features/production/OrderDetail'
 import { WorkerItemPage } from '../features/production/WorkerItemPage'
@@ -60,6 +61,7 @@ export function App() {
         </Route>
         <Route element={<CapabilityGuard anyOf={['VIEW_PRODUCTION']} />}>
           <Route path="production" element={<ProductionPage />} />
+          <Route path="production/orders/:id/execution" element={<ProductionOrderDetail />} />
           <Route path="my-work" element={<MyWorkPage />} />
           <Route path="my-work/items/:id" element={<WorkerItemPage />} />
         </Route>
