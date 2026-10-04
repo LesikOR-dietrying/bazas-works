@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
@@ -8,6 +10,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     Numeric,
     String,
@@ -104,10 +107,45 @@ class Product(Identity, Timestamps, Base):
         )
     )
     category: Mapped[ProductCategory] = relationship(lazy="joined")
+    variants: Mapped[list[ProductVariant]] = relationship(
+        back_populates="product", foreign_keys="ProductVariant.product_id", lazy="selectin"
+    )
 
     @property
     def category_name(self) -> str:
         return self.category.name
+
+    @property
+    def variant_count(self) -> int:
+        return len(self.variants)
+
+
+class ProductVariant(Identity, Timestamps, Base):
+    __tablename__ = "product_variants"
+    __table_args__ = (
+        UniqueConstraint("product_id", "code", name="uq_product_variants_product_code"),
+        UniqueConstraint("product_id", "id", name="uq_product_variants_product_id_pair"),
+        CheckConstraint("length(trim(code)) > 0", name="code_nonempty"),
+        CheckConstraint("length(trim(name)) > 0", name="name_nonempty"),
+    )
+
+    product_id: Mapped[UUID] = mapped_column(
+        ForeignKey("products.id", ondelete="RESTRICT"), index=True
+    )
+    code: Mapped[str] = mapped_column(String(100))
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text, default="", server_default="")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    current_revision_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey(
+            "product_revisions.id",
+            ondelete="RESTRICT",
+            use_alter=True,
+            name="fk_product_variants_current_revision_id_product_revisions",
+        ),
+        index=True,
+    )
+    product: Mapped[Product] = relationship(back_populates="variants", foreign_keys=[product_id])
 
 
 class ProductRevision(Identity, Timestamps, Base):
@@ -115,7 +153,14 @@ class ProductRevision(Identity, Timestamps, Base):
     __table_args__ = (
         UniqueConstraint("product_id", "id", name="uq_product_revisions_product_id_pair"),
         UniqueConstraint("product_id", "revision_code", name="uq_product_revisions_product_code"),
+        UniqueConstraint("variant_id", "revision_code", name="uq_product_revisions_variant_code"),
         UniqueConstraint("source_promotion_request_id", name="uq_product_revisions_promotion"),
+        ForeignKeyConstraint(
+            ["product_id", "variant_id"],
+            ["product_variants.product_id", "product_variants.id"],
+            name="fk_product_revisions_product_variant",
+            ondelete="RESTRICT",
+        ),
         CheckConstraint("length(trim(revision_code)) > 0", name="revision_code_nonempty"),
         CheckConstraint("status IN ('DRAFT','IN_REVIEW','RELEASED','RETIRED')", name="status"),
         CheckConstraint("standard_cost IS NULL OR standard_cost >= 0", name="cost_nonnegative"),
@@ -129,6 +174,9 @@ class ProductRevision(Identity, Timestamps, Base):
     )
 
     product_id: Mapped[UUID] = mapped_column(ForeignKey("products.id", ondelete="RESTRICT"))
+    variant_id: Mapped[UUID] = mapped_column(
+        ForeignKey("product_variants.id", ondelete="RESTRICT"), index=True
+    )
     revision_code: Mapped[str] = mapped_column(String(100))
     status: Mapped[str] = mapped_column(
         String(20), default=RevisionStatus.DRAFT, server_default=RevisionStatus.DRAFT, index=True
@@ -155,10 +203,15 @@ class ProductRevision(Identity, Timestamps, Base):
     released_by_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     product: Mapped[Product] = relationship(lazy="joined", foreign_keys=[product_id])
+    variant: Mapped[ProductVariant] = relationship(lazy="joined", foreign_keys=[variant_id])
 
     @property
     def product_name(self) -> str:
         return self.product.name
+
+    @property
+    def variant_name(self) -> str:
+        return self.variant.name
 
 
 class ProductRevisionBomItem(Identity, Timestamps, Base):

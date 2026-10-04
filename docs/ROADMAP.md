@@ -1,7 +1,7 @@
 # План реалізації за CODEX_PRODUCT_SPEC
 
-> Статус: Phase 0 затверджено, Phase 1–2 реалізовано. Поточний застосунок і
-> migrations `0001–0008` є робочим additive baseline. Phase 3 не розпочато.
+> Статус: доменні Phase 0–5 та етапи rework 0–3 реалізовано. Поточний застосунок
+> і migrations `0001–0012` є робочим additive baseline.
 
 ## Phase 0 — Architecture (proposal complete)
 
@@ -66,8 +66,11 @@ Acceptance:
 
 ## Phase 3 — Products and approved production definition
 
+**Статус: реалізовано, включно з постійними комплектаціями каталогу.**
+
 - UOM and shared component catalog extensions;
 - products, extensible categories and SERIAL/BATCH/QUANTITY mode;
+- persistent ProductVariant configurations with compatible Standard backfill;
 - draft/review/released Product Revisions and explicit R&D promotion;
 - revision BOM and approved alternatives;
 - visual technology cards, photos, operation checklist templates;

@@ -22,6 +22,7 @@ from app.modules.products.models import (
     ProductCategory,
     ProductLifecycle,
     ProductRevision,
+    ProductVariant,
     RevisionStatus,
     TrackingMode,
 )
@@ -57,8 +58,12 @@ def _production_order(
     )
     db.add(product)
     db.flush()
+    variant = ProductVariant(product_id=product.id, code="STANDARD", name="Стандартна")
+    db.add(variant)
+    db.flush()
     revision = ProductRevision(
         product_id=product.id,
+        variant_id=variant.id,
         revision_code="R1",
         status=RevisionStatus.RELEASED,
         created_by_id=manager.id,
@@ -68,6 +73,7 @@ def _production_order(
     db.add(revision)
     db.flush()
     product.current_revision_id = revision.id
+    variant.current_revision_id = revision.id
     card = TechnologyCard(revision_id=revision.id, title="Assembly")
     db.add(card)
     db.flush()

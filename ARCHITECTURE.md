@@ -1,8 +1,8 @@
 # BAZA — цільова архітектура R&D і виробництва
 
-> Статус: **Phase 0 затверджено; Phase 1–2 реалізовано**. Документ описує
-> цільову модель за `CODEX_PRODUCT_SPEC.md`. Поточна additive схема `0001–0008`
-> зберігає сумісність із наявними даними; Product/Production лишаються наступними фазами.
+> Статус: **Phase 0 затверджено; доменні Phase 1–5 та етапи rework 0–3 реалізовано**.
+> Документ описує цільову модель за `CODEX_PRODUCT_SPEC.md`. Поточна additive схема `0001–0012`
+> зберігає сумісність із наявними даними; наступними є етапи якості, відвантаження та складу.
 
 ## Архітектурне рішення
 
@@ -140,7 +140,10 @@ auth sessions, бо JWT і session rows посилаються на незмін
   repeater, antenna and future categories.
 - `Product`: only model-level name, category, description, general image,
   lifecycle status, tracking mode and pointer to current released revision.
-- `ProductRevision`: product, revision code, `DRAFT/IN_REVIEW/RELEASED/RETIRED`,
+- `ProductVariant`: постійна комплектація конкретної моделі з власною чинною
+  затвердженою версією. Вона не є `OrderVariant` конкретного замовлення.
+- `ProductRevision`: product, product variant, revision code,
+  `DRAFT/IN_REVIEW/RELEASED/RETIRED`,
   source project/branch/configuration, technical characteristics, standard
   cost/currency, user manual, configuration files, manufacturing documents,
   drawings, wiring diagrams, revision instructions and release metadata.
@@ -376,7 +379,7 @@ while their parent is a deletable draft.
 
 ## Стратегія міграції
 
-`0001–0006` remain immutable. Use expand/migrate/contract:
+`0001–0011` remain immutable. Use expand/migrate/contract:
 
 1. **Identity expand**: nullable username → deterministic backfill → normalized
    unique index → NOT NULL; roles/user_roles, seeded codes, legacy role backfill,

@@ -105,6 +105,28 @@ describe('authenticated shell', () => {
     await waitFor(() => expect(posts).toContain('/api/orders'))
     expect(await screen.findByRole('link', { name: 'ORD-001' })).toBeInTheDocument()
   })
+  it('shows product configurations and creates a new one', async () => {
+    const engineer = { ...employee, role: 'ENGINEER', roles: ['ENGINEER'], capabilities: ['VIEW_ENGINEERING', 'MANAGE_ENGINEERING'] }
+    const productId = 'd41c1e54-2cf7-4bc4-85ef-d9756558f8ab'
+    const variantId = '7ed6fb59-350e-4d2c-8b52-c61cc0c2c457'
+    const posts: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (path: string, options?: RequestInit) => {
+      if (path.endsWith('/auth/me')) return response(engineer)
+      if (path.endsWith(`/products/${productId}/variants`) && options?.method === 'POST') { posts.push(path); return response({ id: 'new-variant', product_id: productId, code: 'FIELD', name: 'Польова', description: '', is_active: true, current_revision_id: null, created_at: '', updated_at: '' }, 201) }
+      if (path.endsWith(`/products/${productId}/variants`)) return response([{ id: variantId, product_id: productId, code: 'STANDARD', name: 'Стандартна', description: '', is_active: true, current_revision_id: null, created_at: '', updated_at: '' }])
+      if (path.endsWith(`/products/${productId}/revisions`)) return response([{ id: 'revision-id', product_id: productId, product_name: 'Розвідник', variant_id: variantId, variant_name: 'Стандартна', revision_code: 'R1', status: 'DRAFT', technical_characteristics: {}, standard_cost: null, currency: 'UAH', revision_instructions: '', source_setup_id: null, source_branch_id: null, source_project_id: null, released_at: null, created_at: '', updated_at: '' }])
+      if (path.endsWith(`/products/${productId}`)) return response({ id: productId, code: 'UAV-1', name: 'Розвідник', category_id: 'category', category_name: 'БПЛА', description: '', lifecycle: 'DEVELOPMENT', tracking_mode: 'SERIAL', current_revision_id: null, general_image_attachment_id: null, variant_count: 1, created_at: '', updated_at: '' })
+      return response({ status: 'ok' })
+    }))
+    renderApp(`/products/${productId}`)
+    expect(await screen.findByRole('combobox', { name: 'Комплектація' })).toHaveValue(variantId)
+    expect(screen.getByText('Не розраховано')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Версії' }))
+    fireEvent.change(screen.getByPlaceholderText('Код комплектації'), { target: { value: 'FIELD' } })
+    fireEvent.change(screen.getByPlaceholderText('Назва комплектації'), { target: { value: 'Польова' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Створити комплектацію' }))
+    await waitFor(() => expect(posts).toContain(`/api/products/${productId}/variants`))
+  })
   it('shows execution data on Production without planning forms', async () => {
     const manager = { ...employee, role: 'MANAGER', roles: ['PRODUCTION_MANAGER'], capabilities: ['VIEW_PRODUCTION', 'MANAGE_ORDERS'] }
     const queue = { items: [{ order_id: 'd41c1e54-2cf7-4bc4-85ef-d9756558f8ab', order_number: 'ORD-RUN', customer_name: 'Замовник', deadline: '2026-10-20', status: 'PRODUCTION', completed_quantity: 12, planned_quantity: 20, percent: 60, active_operations: 2, blocked_operations: 1, assignees: ['Оператор'], current_item_id: '7ed6fb59-350e-4d2c-8b52-c61cc0c2c457', current_item_identifier: 'UNIT-001', stages: [] }], total: 1, page: 1, page_size: 20 }
