@@ -132,10 +132,10 @@ def add_item(session: Session, order_id: UUID, user: User, data: ItemWrite) -> O
     _manage(user)
     order = get_order(session, order_id, user, lock=True)
     if order.status != OrderStatus.DRAFT:
-        raise DomainError(409, "Рядки змінюються лише у draft замовленні.")
+        raise DomainError(409, "Рядки змінюються лише в чернетці замовлення.")
     revision = session.get(ProductRevision, data.product_revision_id)
     if revision is None or revision.status != RevisionStatus.RELEASED:
-        raise DomainError(422, "Оберіть випущену ревізію продукту.")
+        raise DomainError(422, "Оберіть затверджену версію продукції.")
     row = OrderItem(order_id=order_id, product_id=revision.product_id, **data.model_dump())
     session.add(row)
     session.flush()
@@ -180,7 +180,7 @@ def split_variant(session: Session, item_id: UUID, user: User, data: VariantWrit
         or standard.status != VariantStatus.DRAFT
         or data.quantity >= standard.quantity
     ):
-        raise DomainError(409, "Недостатньо кількості у standard variant.")
+        raise DomainError(409, "У стандартному варіанті недостатньо кількості.")
     standard.quantity -= data.quantity
     row = OrderVariant(order_item_id=item_id, status=VariantStatus.DRAFT, **data.model_dump())
     session.add(row)
@@ -195,11 +195,11 @@ def add_deviation(
     _manage(user)
     variant = session.get(OrderVariant, variant_id)
     if variant is None or variant.status != VariantStatus.DRAFT:
-        raise DomainError(409, "Заміна додається лише до draft variant.")
+        raise DomainError(409, "Заміна додається лише до чернетки варіанта.")
     item = session.get(OrderItem, variant.order_item_id)
     bom = session.get(ProductRevisionBomItem, data.original_bom_item_id)
     if item is None or bom is None or bom.revision_id != item.product_revision_id:
-        raise DomainError(422, "BOM row не належить ревізії замовлення.")
+        raise DomainError(422, "Рядок специфікації не належить версії в замовленні.")
     if session.get(Component, data.replacement_component_id) is None:
         raise DomainError(422, "Компонент заміни не знайдено.")
     values = data.model_dump(exclude={"test_ids"})

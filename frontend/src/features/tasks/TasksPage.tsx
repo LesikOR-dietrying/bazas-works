@@ -13,6 +13,7 @@ import { hasCapability } from '../auth/types'
 import { useProjectOptions, useUserOptions } from '../projects/hooks'
 import { TaskBoard } from './TaskBoard'
 import { taskStatuses, priorities, isOverdue } from './types'
+import { labelForCode } from '../../lib/labels'
 import type { Task } from './types'
 
 export function TasksPage({ projectId, branchId }: { projectId?: string; branchId?: string }) {
@@ -30,8 +31,8 @@ export function TasksPage({ projectId, branchId }: { projectId?: string; branchI
   return <><div className="page-heading"><div><h1>{branchId ? 'Задачі гілки' : projectId ? 'Задачі проєкту' : 'Задачі'}</h1><p className="page-description">Робота, виконавці та результати.</p></div>{hasCapability(user, 'MANAGE_TASKS') && <Button asChild><Link to={`/tasks/new${createParams.size ? `?${createParams}` : ''}`}>Нова задача</Link></Button>}</div>
     <div className="view-controls"><div className="tabs"><button className={mine ? 'selected' : ''} onClick={() => { setMine(true); setPage(1) }}>Мої задачі</button><button className={!mine ? 'selected' : ''} onClick={() => { setMine(false); setPage(1) }}>{!hasCapability(user, 'MANAGE_TASKS') ? 'Усі доступні' : 'Усі задачі'}</button></div><div className="form-actions"><Button variant={view === 'table' ? 'default' : 'outline'} onClick={() => setView('table')}>Таблиця</Button><Button variant={view === 'kanban' ? 'default' : 'outline'} onClick={() => setView('kanban')}>Kanban</Button></div></div>
     <div className="filters"><Input aria-label="Пошук задач" placeholder="Пошук за назвою" value={q} onChange={e => filter(setQ, e.target.value)} />
-      <select aria-label="Статус задачі" className="form-input" value={status} onChange={e => filter(setStatus, e.target.value)}><option value="">Усі статуси</option>{taskStatuses.map(s => <option key={s}>{s}</option>)}</select>
-      <select aria-label="Пріоритет" className="form-input" value={priority} onChange={e => filter(setPriority, e.target.value)}><option value="">Усі пріоритети</option>{priorities.map(p => <option key={p}>{p}</option>)}</select>
+      <select aria-label="Статус задачі" className="form-input" value={status} onChange={e => filter(setStatus, e.target.value)}><option value="">Усі статуси</option>{taskStatuses.map(s => <option key={s} value={s}>{labelForCode(s)}</option>)}</select>
+      <select aria-label="Пріоритет" className="form-input" value={priority} onChange={e => filter(setPriority, e.target.value)}><option value="">Усі пріоритети</option>{priorities.map(p => <option key={p} value={p}>{labelForCode(p)}</option>)}</select>
       <select aria-label="Виконавець" className="form-input" value={assignee} onChange={e => filter(setAssignee, e.target.value)}><option value="">Усі виконавці</option>{users.data?.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}</select>
       {!projectId && <select aria-label="Проєкт" className="form-input" value={project} onChange={e => filter(setProject, e.target.value)}><option value="">Усі проєкти</option>{projects.data?.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}
       <select aria-label="Сортування задач" className="form-input" value={sort} onChange={e => filter(setSort, e.target.value)}><option value="updated_at">За оновленням</option><option value="deadline">За строком</option><option value="priority">За пріоритетом</option><option value="title">За назвою</option></select>

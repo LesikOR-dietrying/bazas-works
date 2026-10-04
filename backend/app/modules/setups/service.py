@@ -143,7 +143,9 @@ def _ensure_bom_mutable(session: Session, setup_id: UUID) -> None:
     from app.modules.tests.models import Test
 
     if session.scalar(select(Test.id).where(Test.setup_id == setup_id).limit(1)):
-        raise DomainError(409, "BOM конфігурації з випробуваннями незмінний. Створіть нову версію.")
+        raise DomainError(
+            409, "Специфікація випробуваної конфігурації незмінна. Створіть нову версію."
+        )
 
 
 def _get_bom_item(session: Session, setup_id: UUID, item_id: UUID, user: User) -> SetupComponent:

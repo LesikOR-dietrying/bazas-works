@@ -9,6 +9,7 @@ import { Input } from '../../components/ui/input'
 import { useSession } from '../auth/useSession'
 import { canEditEngineering, useSetup } from './hooks'
 import { setupStatuses } from './types'
+import { labelForCode } from '../../lib/labels'
 import type { Setup, SetupStatus } from './types'
 import { MetadataFields } from '../tests/MetadataFields'
 
@@ -60,7 +61,7 @@ function SetupForm({ setup }: { setup?: Setup }) {
     mutation.mutate(body)
   }
   return <><div className="page-heading"><h1>{setup ? 'Редагувати сетап' : 'Новий сетап'}</h1></div><form className="form-panel form-stack" onSubmit={submit}>
-    <div className="editor-grid">{textFields.slice(0, 3).map(({ key, label, required }) => <Field key={key} label={label}><Input maxLength={255} required={required} value={draft[key]} onChange={e => set(key, e.target.value)} /></Field>)}<Field label="Статус"><select className="form-input" value={draft.status} onChange={e => set('status', e.target.value)}>{setupStatuses.map(status => <option key={status}>{status}</option>)}</select></Field></div>
+    <div className="editor-grid">{textFields.slice(0, 3).map(({ key, label, required }) => <Field key={key} label={label}><Input maxLength={255} required={required} value={draft[key]} onChange={e => set(key, e.target.value)} /></Field>)}<Field label="Статус"><select className="form-input" value={draft.status} onChange={e => set('status', e.target.value)}>{setupStatuses.map(status => <option key={status} value={status}>{labelForCode(status)}</option>)}</select></Field></div>
     <Field label="Опис"><textarea className="form-input" value={draft.description} onChange={e => set('description', e.target.value)} /></Field>
     <h2>Параметри конфігурації</h2><div className="editor-grid">{numberFields.map(({ key, label }) => <Field key={key} label={label}><Input type="number" min="0" step="any" value={draft[key]} onChange={e => set(key, e.target.value)} /></Field>)}{textFields.slice(3).map(({ key, label }) => <Field key={key} label={label}><Input maxLength={255} value={draft[key]} onChange={e => set(key, e.target.value)} /></Field>)}</div>
     <MetadataFields title="Інші характеристики" values={attributes} onChange={setAttributes} />

@@ -1,10 +1,10 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useParams } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import { Layout } from '../components/Layout'
 import { Loading } from '../components/Feedback'
 import { DashboardPage } from '../pages/DashboardPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
-import { AuthGuard, AdminGuard } from '../features/auth/AuthGuard'
+import { AuthGuard, AdminGuard, CapabilityGuard } from '../features/auth/AuthGuard'
 import { LoginPage } from '../features/auth/LoginPage'
 import { UsersPage } from '../features/users/UsersPage'
 import { SettingsPage } from '../features/users/SettingsPage'
@@ -48,13 +48,21 @@ export function App() {
         <Route index element={<DashboardPage />} />
         <Route path="rnd" element={<RndPage />} />
         <Route path="rnd/branches/:id" element={<BranchDetail />} />
-        <Route path="products" element={<ProductsPage />} />
-        <Route path="products/:id" element={<ProductDetail />} />
-        <Route path="production" element={<ProductionPage />} />
-        <Route path="production/orders/:id" element={<OrderDetail />} />
-        <Route path="inventory" element={<ModulePage title="Inventory" description="Залишки, партії та рух компонентів." phase={7} />} />
-        <Route path="my-work" element={<MyWorkPage />} />
-        <Route path="my-work/items/:id" element={<WorkerItemPage />} />
+        <Route element={<CapabilityGuard anyOf={['VIEW_ENGINEERING']} />}>
+          <Route path="products" element={<ProductsPage />} />
+          <Route path="products/:id" element={<ProductDetail />} />
+        </Route>
+        <Route element={<CapabilityGuard anyOf={['MANAGE_ORDERS', 'MANAGE_PROCUREMENT']} />}>
+          <Route path="orders" element={<ProductionPage />} />
+          <Route path="orders/:id" element={<OrderDetail />} />
+          <Route path="inventory" element={<ModulePage title="Склад" description="Фізичні залишки, рухи та резервування компонентів." phase={7} />} />
+        </Route>
+        <Route element={<CapabilityGuard anyOf={['VIEW_PRODUCTION']} />}>
+          <Route path="production" element={<ProductionPage />} />
+          <Route path="my-work" element={<MyWorkPage />} />
+          <Route path="my-work/items/:id" element={<WorkerItemPage />} />
+        </Route>
+        <Route path="production/orders/:id" element={<LegacyOrderRedirect />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="projects/new" element={<ProjectFormPage />} />
         <Route path="projects/:id" element={<ProjectDetail />} />
@@ -81,4 +89,9 @@ export function App() {
       </Route>
     </Routes>
   )
+}
+
+function LegacyOrderRedirect() {
+  const { id = '' } = useParams()
+  return <Navigate replace to={`/orders/${id}`} />
 }

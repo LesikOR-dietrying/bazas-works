@@ -10,6 +10,7 @@ import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { useSession } from '../auth/useSession'
 import { hasCapability } from '../auth/types'
+import { labelForCode } from '../../lib/labels'
 import { useUserOptions } from './hooks'
 import { projectStatuses } from './types'
 import type { Project } from './types'
@@ -25,7 +26,7 @@ export function ProjectsPage({ embedded = false }: { embedded?: boolean }) {
   const canEdit = hasCapability(user, 'MANAGE_PROJECTS')
   return <><div className="page-heading"><div>{!embedded && <p className="eyebrow">РОБОЧИЙ ПРОСТІР</p>}<h1>{embedded ? 'R&D проєкти' : 'Проєкти'}</h1><p className="page-description">Учасники, гілки, задачі та перебіг роботи.</p></div>{canEdit && <Button asChild><Link to="/projects/new">Новий проєкт</Link></Button>}</div>
     <div className="filters"><Input aria-label="Пошук проєктів" placeholder="Пошук за назвою" value={q} onChange={e => { setQ(e.target.value); setPage(1) }} />
-      <select aria-label="Статус проєкту" className="form-input" value={status} onChange={e => { setStatus(e.target.value); setPage(1) }}><option value="">Усі статуси</option>{projectStatuses.map(s => <option key={s}>{s}</option>)}</select>
+      <select aria-label="Статус проєкту" className="form-input" value={status} onChange={e => { setStatus(e.target.value); setPage(1) }}><option value="">Усі статуси</option>{projectStatuses.map(s => <option key={s} value={s}>{labelForCode(s)}</option>)}</select>
       <select aria-label="Відповідальний" className="form-input" value={responsible} onChange={e => { setResponsible(e.target.value); setPage(1) }}><option value="">Усі відповідальні</option>{users.data?.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}</select>
       <select aria-label="Сортування проєктів" className="form-input" value={sort} onChange={e => { setSort(e.target.value); setPage(1) }}><option value="updated_at">За оновленням</option><option value="name">За назвою</option><option value="status">За статусом</option></select>
       <Button variant="outline" onClick={() => setDirection(direction === 'asc' ? 'desc' : 'asc')}>{direction === 'asc' ? '↑ За зростанням' : '↓ За спаданням'}</Button></div>

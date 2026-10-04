@@ -22,7 +22,7 @@ export function LoginPage() {
   const mutation = useMutation({ mutationFn: async (values: Values) => userSchema.parse(await send('/auth/login', 'POST', values)),
     onSuccess: async (user) => { await replaceSession(cache, user); navigate('/', { replace: true }) } })
   if (session.data) return <Navigate to="/" replace />
-  return <main className="login-page"><section className="login-card"><p className="eyebrow">BAZA · ENGINEERING WORKSPACE</p>
+  return <main className="login-page"><section className="login-card"><p className="eyebrow">BAZA · ВНУТРІШНЯ СИСТЕМА</p>
     <h1>Вхід до робочого простору</h1><p className="page-description">Увійдіть за обліковим записом, створеним адміністратором.</p>
     <form onSubmit={form.handleSubmit(values => mutation.mutate(values))} className="form-stack">
       <Field label="Логін" error={form.formState.errors.username?.message}><Input autoComplete="username" {...form.register('username')} /></Field>

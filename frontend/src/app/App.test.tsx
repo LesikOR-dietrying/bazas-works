@@ -31,8 +31,9 @@ describe('authenticated shell', () => {
   it('hides engineering navigation from employees and denies direct routes', async () => {
     renderApp('/setups')
     expect(await screen.findByRole('alert')).toHaveTextContent('Конфігурації доступні')
-    expect(screen.getByRole('link', { name: 'R&D' })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Admin Settings' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Розробка' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Продукція' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Користувачі' })).not.toBeInTheDocument()
   })
   it('shows persisted tests to engineers and filters the API by status', async () => {
     const engineer = { ...employee, role: 'ENGINEER', roles: ['ENGINEER', 'RND_ENGINEER'], capabilities: ['VIEW_ALL_PROJECTS', 'MANAGE_TASKS', 'VIEW_ENGINEERING', 'MANAGE_ENGINEERING', 'VIEW_RND_DASHBOARD'] }
@@ -58,7 +59,7 @@ describe('authenticated shell', () => {
   it('keeps navigation on unknown routes', async () => {
     renderApp('/unknown')
     expect(await screen.findByRole('heading', { name: 'Сторінку не знайдено' })).toBeInTheDocument()
-    expect(screen.getByRole('navigation')).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Основні розділи' })).toBeInTheDocument()
   })
   it('reports API readiness', async () => {
     renderApp()
@@ -93,7 +94,7 @@ describe('authenticated shell', () => {
       if (path.endsWith('/procurement/suppliers') || path.endsWith('/components/options')) return response([])
       return response({ status: 'ok' })
     }))
-    renderApp('/production')
+    renderApp('/orders')
     fireEvent.click(await screen.findByRole('button', { name: 'Новий замовник' }))
     fireEvent.change(screen.getByLabelText('Назва замовника'), { target: { value: 'ТОВ Тест' } })
     fireEvent.click(screen.getByRole('button', { name: 'Створити замовника' }))
@@ -122,6 +123,23 @@ describe('authenticated shell', () => {
   it('blocks employee access to admin page', async () => {
     renderApp('/users')
     expect(await screen.findByRole('heading', { name: 'Доступ обмежено' })).toBeInTheDocument()
+  })
+  it('shows all five main sections to an administrator', async () => {
+    const administrator = { ...employee, role: 'ADMIN', roles: ['ADMINISTRATOR'], capabilities: ['ADMIN_USERS', 'VIEW_ENGINEERING', 'VIEW_PRODUCTION', 'MANAGE_ORDERS', 'MANAGE_PROCUREMENT'] }
+    vi.stubGlobal('fetch', vi.fn(async (path: string) => path.endsWith('/auth/me') ? response(administrator) : response(fixture(path))))
+    renderApp()
+    const navigation = await screen.findByRole('navigation', { name: 'Основні розділи' })
+    for (const label of ['Розробка', 'Продукція', 'Замовлення', 'Виробництво', 'Склад']) {
+      expect(navigation).toHaveTextContent(label)
+    }
+  })
+  it('redirects the old order URL to the orders section', async () => {
+    const manager = { ...employee, role: 'MANAGER', roles: ['PRODUCTION_MANAGER'], capabilities: ['VIEW_PRODUCTION', 'MANAGE_ORDERS'] }
+    const order = { id: 'd41c1e54-2cf7-4bc4-85ef-d9756558f8ab', order_number: 'ORD-LEGACY', customer_id: '91c7b840-d713-4aac-a220-7bfc7909cfd6', customer_name: 'Замовник', recipient: '', destination: '', order_date: '2026-10-04', deadline: null, notes: '', status: 'DRAFT', created_by_id: employee.id, created_at: '2026-10-04T00:00:00Z', updated_at: '2026-10-04T00:00:00Z' }
+    vi.stubGlobal('fetch', vi.fn(async (path: string) => path.endsWith('/auth/me') ? response(manager) : path.endsWith(`/orders/${order.id}/items`) ? response([]) : path.endsWith(`/orders/${order.id}`) ? response(order) : path.endsWith('/orders/revision-options') ? response([]) : path.endsWith(`/orders/${order.id}/requirements`) || path.endsWith(`/orders/${order.id}/materials`) ? response([]) : response({ status: 'ok' })))
+    renderApp(`/production/orders/${order.id}`)
+    expect(await screen.findByRole('heading', { name: 'ORD-LEGACY' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '← До замовлень' })).toHaveAttribute('href', '/orders')
   })
   it('leaves protected content immediately after logout', async () => {
     let loggedIn = true

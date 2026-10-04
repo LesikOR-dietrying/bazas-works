@@ -115,7 +115,7 @@ def transition_status(
     if target == current:
         return record
     if target not in _STATUS_TRANSITIONS[current]:
-        raise DomainError(409, f"Перехід закупівлі {current.value} → {target.value} заборонено.")
+        raise DomainError(409, "Недопустимий перехід статусу закупівлі.")
     record.status = target
     session.commit()
     session.refresh(record)
