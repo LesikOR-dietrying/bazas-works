@@ -6,8 +6,16 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import DomainError
+from app.core.pagination import Page, paginate, search_pattern
 from app.modules.files.models import Attachment
-from app.modules.orders.models import Order, OrderItem, OrderStatus, OrderVariant, VariantStatus
+from app.modules.orders.models import (
+    Customer,
+    Order,
+    OrderItem,
+    OrderStatus,
+    OrderVariant,
+    VariantStatus,
+)
 from app.modules.production.models import (
     ExecutionStatus,
     ProductionItem,
@@ -25,6 +33,8 @@ from app.modules.production.schemas import (
     LaunchRead,
     OrderProgressRead,
     ProductionItemRead,
+    ProductionQueueFilters,
+    ProductionQueueRead,
     StageProgressRead,
     WorkItemRead,
 )
@@ -50,6 +60,114 @@ def _view(user: User) -> None:
 
 def _manage(user: User) -> None:
     require_capability(user, Capability.MANAGE_ORDERS, "Недостатньо прав для запуску виробництва.")
+
+
+def production_queue(
+    session: Session, user: User, filters: ProductionQueueFilters
+) -> Page[ProductionQueueRead]:
+    _view(user)
+    statement = select(Order).where(Order.status.in_([OrderStatus.PRODUCTION, OrderStatus.READY]))
+    if filters.q:
+        pattern = search_pattern(filters.q)
+        statement = statement.where(
+            or_(
+                Order.order_number.ilike(pattern),
+                Order.recipient.ilike(pattern),
+                Order.customer.has(Customer.name.ilike(pattern)),
+            )
+        )
+    if filters.status:
+        statement = statement.where(Order.status == filters.status)
+    orders = paginate(session, statement.order_by(Order.deadline.asc(), Order.id), filters)
+    return Page(
+        items=[_queue_read(session, order) for order in orders.items],
+        total=orders.total,
+        page=orders.page,
+        page_size=orders.page_size,
+    )
+
+
+def _queue_read(session: Session, order: Order) -> ProductionQueueRead:
+    rows = session.execute(
+        select(
+            RouteStage.code,
+            RouteStage.name,
+            func.sum(StageExecution.completed_quantity),
+            func.sum(StageExecution.planned_quantity),
+        )
+        .join(StageExecution, StageExecution.stage_id == RouteStage.id)
+        .join(ProductionItem)
+        .join(OrderVariant)
+        .join(OrderItem)
+        .where(OrderItem.order_id == order.id)
+        .group_by(RouteStage.code, RouteStage.name, RouteStage.sequence)
+        .order_by(RouteStage.sequence)
+    ).all()
+    stages = [
+        StageProgressRead(stage_code=code, stage_name=name, completed=done or 0, total=total or 0)
+        for code, name, done, total in rows
+    ]
+    planned = sum(stage.total for stage in stages)
+    completed = sum(stage.completed for stage in stages)
+    status_counts = dict(
+        session.execute(
+            select(StageExecution.status, func.count())
+            .join(ProductionItem)
+            .join(OrderVariant)
+            .join(OrderItem)
+            .where(OrderItem.order_id == order.id)
+            .group_by(StageExecution.status)
+        ).all()
+    )
+    assignees = list(
+        session.scalars(
+            select(User.full_name)
+            .join(StageExecution, StageExecution.assigned_user_id == User.id)
+            .join(ProductionItem)
+            .join(OrderVariant)
+            .join(OrderItem)
+            .where(
+                OrderItem.order_id == order.id,
+                StageExecution.status.in_([ExecutionStatus.READY, ExecutionStatus.IN_PROGRESS]),
+            )
+            .distinct()
+            .order_by(User.full_name)
+        )
+    )
+    current = session.execute(
+        select(ProductionItem.id, ProductionItem.identifier)
+        .join(StageExecution)
+        .join(RouteStage, RouteStage.id == StageExecution.stage_id)
+        .join(OrderVariant, OrderVariant.id == ProductionItem.variant_id)
+        .join(OrderItem, OrderItem.id == OrderVariant.order_item_id)
+        .where(
+            OrderItem.order_id == order.id,
+            StageExecution.status.in_([ExecutionStatus.IN_PROGRESS, ExecutionStatus.READY]),
+        )
+        .order_by(
+            (StageExecution.status == ExecutionStatus.IN_PROGRESS).desc(),
+            RouteStage.sequence,
+            ProductionItem.identifier,
+        )
+        .limit(1)
+    ).first()
+    return ProductionQueueRead(
+        order_id=order.id,
+        order_number=order.order_number,
+        customer_name=order.customer_name,
+        deadline=order.deadline,
+        status=order.status,
+        completed_quantity=completed,
+        planned_quantity=planned,
+        percent=round(completed * 100 / planned) if planned else 0,
+        active_operations=status_counts.get(ExecutionStatus.READY, 0)
+        + status_counts.get(ExecutionStatus.IN_PROGRESS, 0),
+        blocked_operations=status_counts.get(ExecutionStatus.WAITING, 0),
+        assignees=assignees,
+        current_item_id=current.id if current else None,
+        current_item_identifier=current.identifier if current else None,
+        stages=stages,
+    )
 
 
 def _execution_read(row: StageExecution) -> ExecutionRead:

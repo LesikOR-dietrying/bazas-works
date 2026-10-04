@@ -169,6 +169,16 @@ def test_serial_stage_workflow_unlocks_dependencies_and_is_idempotent(
     items = auth_client.get(f"/api/production/orders/{order.id}/items").json()
     assert len(items) == 2
     assert all(item["tracking_mode"] == "SERIAL" and item["quantity"] == 1 for item in items)
+    queue = auth_client.get("/api/production/queue?q=ORDER-SERIAL&page=1&page_size=1").json()
+    assert queue["total"] == 1
+    assert queue["page"] == 1
+    assert queue["page_size"] == 1
+    assert queue["items"][0]["order_id"] == str(order.id)
+    assert queue["items"][0]["planned_quantity"] == 4
+    assert queue["items"][0]["completed_quantity"] == 0
+    assert queue["items"][0]["active_operations"] == 2
+    assert queue["items"][0]["blocked_operations"] == 2
+    assert queue["items"][0]["current_item_id"] in {item["id"] for item in items}
 
     employee_headers = sign_in(auth_client, "EMPLOYEE")
     work = auth_client.get("/api/production/my-work").json()

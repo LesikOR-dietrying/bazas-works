@@ -67,7 +67,7 @@ describe('authenticated shell', () => {
     expect(await screen.findByRole('link', { name: /Активні задачі/ })).toHaveTextContent('3')
     expect(screen.getByRole('link', { name: /Заблоковані/ })).toHaveTextContent('2')
   })
-  it('submits customer and order creation from Production', async () => {
+  it('submits customer and order creation from Orders', async () => {
     const administrator = { ...employee, role: 'ADMIN', roles: ['ADMINISTRATOR'], capabilities: ['VIEW_PRODUCTION', 'MANAGE_ORDERS', 'MANAGE_PROCUREMENT'] }
     const customerId = '91c7b840-d713-4aac-a220-7bfc7909cfd6'
     const orderId = 'd41c1e54-2cf7-4bc4-85ef-d9756558f8ab'
@@ -104,6 +104,17 @@ describe('authenticated shell', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Створити$/ }))
     await waitFor(() => expect(posts).toContain('/api/orders'))
     expect(await screen.findByRole('link', { name: 'ORD-001' })).toBeInTheDocument()
+  })
+  it('shows execution data on Production without planning forms', async () => {
+    const manager = { ...employee, role: 'MANAGER', roles: ['PRODUCTION_MANAGER'], capabilities: ['VIEW_PRODUCTION', 'MANAGE_ORDERS'] }
+    const queue = { items: [{ order_id: 'd41c1e54-2cf7-4bc4-85ef-d9756558f8ab', order_number: 'ORD-RUN', customer_name: 'Замовник', deadline: '2026-10-20', status: 'PRODUCTION', completed_quantity: 12, planned_quantity: 20, percent: 60, active_operations: 2, blocked_operations: 1, assignees: ['Оператор'], current_item_id: '7ed6fb59-350e-4d2c-8b52-c61cc0c2c457', current_item_identifier: 'UNIT-001', stages: [] }], total: 1, page: 1, page_size: 20 }
+    vi.stubGlobal('fetch', vi.fn(async (path: string) => path.endsWith('/auth/me') ? response(manager) : path.includes('/production/queue?') ? response(queue) : response({ status: 'ok' })))
+    renderApp('/production')
+    expect(await screen.findByRole('heading', { name: 'Виробництво' })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'ORD-RUN' })).toHaveAttribute('href', `/orders/${queue.items[0].order_id}`)
+    expect(screen.getByRole('link', { name: 'UNIT-001' })).toHaveAttribute('href', `/my-work/items/${queue.items[0].current_item_id}`)
+    expect(screen.getByText('12 / 20 · 60%')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Нове замовлення' })).not.toBeInTheDocument()
   })
   it('retries an unavailable backend', async () => {
     let healthy = false

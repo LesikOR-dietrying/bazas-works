@@ -1,7 +1,9 @@
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
+from app.core.pagination import Page
 from app.modules.auth.dependencies import CurrentUser, Database
 from app.modules.production import service
 from app.modules.production.schemas import (
@@ -12,10 +14,21 @@ from app.modules.production.schemas import (
     LaunchRead,
     OrderProgressRead,
     ProductionItemRead,
+    ProductionQueueFilters,
+    ProductionQueueRead,
     WorkItemRead,
 )
 
 router = APIRouter(prefix="/production", tags=["production"])
+
+
+@router.get("/queue", response_model=Page[ProductionQueueRead])
+def queue(
+    session: Database,
+    user: CurrentUser,
+    filters: Annotated[ProductionQueueFilters, Query()],
+) -> object:
+    return service.production_queue(session, user, filters)
 
 
 @router.post("/orders/{order_id}/launch", response_model=LaunchRead)

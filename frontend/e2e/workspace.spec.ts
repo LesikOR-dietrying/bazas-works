@@ -14,6 +14,18 @@ test('Phase 1–2 workflow through R&D promotion and logout', async ({ page }) =
   for (const section of ['Розробка', 'Продукція', 'Замовлення', 'Виробництво', 'Склад']) {
     await expect(mainNavigation.getByRole('link', { name: section, exact: true })).toBeVisible()
   }
+  await page.goto('/orders')
+  await expect(page.getByRole('heading', { name: 'Замовлення', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Нове замовлення', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Закупівлі', exact: true })).toBeVisible()
+  await expect(page.getByText('Замовників ще немає.', { exact: true })).toBeVisible()
+  await expect(page.getByText('Замовлень не знайдено.', { exact: true })).toBeVisible()
+  await page.screenshot({ path: 'test-results/orders-desktop.png', fullPage: true })
+  await page.goto('/production')
+  await expect(page.getByRole('heading', { name: 'Виробництво', exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Відкрити мою роботу →', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Нове замовлення', exact: true })).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/production-desktop.png', fullPage: true })
   await page.setViewportSize({ width: 768, height: 900 })
   await expect(mainNavigation).toBeVisible()
   await page.setViewportSize({ width: 1440, height: 900 })

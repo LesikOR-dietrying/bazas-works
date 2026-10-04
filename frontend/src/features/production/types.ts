@@ -22,3 +22,4 @@ export interface ContentBlock { id: string; block_type: string; sequence: number
 export interface ExecutionDetail { item: ProductionItem; execution: StageExecution; instructions: string; operation_name: string | null; expected_result: string; acceptance_criteria: string; blocks: ContentBlock[]; checklist: ChecklistTemplate[] }
 export interface StageProgress { stage_code: string; stage_name: string; completed: number; total: number }
 export interface OrderProgress { order_id: string; completed: number; total: number; percent: number; stages: StageProgress[] }
+export interface ProductionQueueOrder { order_id: string; order_number: string; customer_name: string; deadline: string | null; status: 'PRODUCTION' | 'READY'; completed_quantity: number; planned_quantity: number; percent: number; active_operations: number; blocked_operations: number; assignees: string[]; current_item_id: string | null; current_item_identifier: string | null; stages: StageProgress[] }
