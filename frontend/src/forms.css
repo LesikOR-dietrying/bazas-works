@@ -1,0 +1,29 @@
+.login-page { display: grid; place-items: center; min-height: 100vh; }
+.login-card { width: 100%; max-width: 440px; padding: 36px; border: 1px solid #dce4d5; border-radius: 12px; background: white; }
+.form-stack { display: flex; flex-direction: column; gap: 17px; margin-top: 24px; }
+.form-field { display: flex; flex-direction: column; gap: 7px; font-size: 13px; font-weight: 500; }
+.form-input { display: block; width: 100%; min-height: 40px; border: 1px solid #cbd6c5; border-radius: 6px; padding: 9px 11px; background: white; font: inherit; font-size: 13px; color: #23332d; }
+.form-input:focus { outline: 2px solid #759962; outline-offset: 1px; }
+.form-input:disabled { background: #f2f4ef; opacity: .7; }
+textarea.form-input { min-height: 105px; resize: vertical; }
+.error-notice { background: #fff0ee; color: #a12620; border: 1px solid #edc3c0; border-radius: 6px; padding: 13px; margin: 12px 0; font-size: 13px; }
+.field-error { color: #a12620; font-weight: 400; }
+.form-panel { background: white; border: 1px solid #dce4d5; padding: 24px; border-radius: 10px; margin-top: 22px; }
+.form-panel h2 { font-size: 18px; font-weight: 600; margin-bottom: 15px; }
+.form-actions, .account-menu { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.account-menu { font-size: 12px; }
+.filters { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
+.filters > * { flex: 1; min-width: 130px; }
+.table-scroll { overflow-x: auto; border: 1px solid #dce4d5; border-radius: 8px; background: white; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: #edf2e7; font-weight: 600; color: #46603a; }
+th, td { padding: 13px 16px; text-align: left; border-bottom: 1px solid #e7ece2; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: #fafbf8; }
+.pagination { display: flex; gap: 9px; justify-content: flex-end; align-items: center; margin: 16px 0; font-size: 12px; flex-wrap: wrap; }
+.pagination > span { margin-right: auto; color: #718069; }
+.editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; align-items: start; }
+.loading-state { padding: 35px; color: #687b5d; }
+.auth-panel { max-width: 500px; margin: 60px auto; padding: 24px; }
+@media(max-width: 800px) { .editor-grid { grid-template-columns: 1fr; } .form-panel { padding: 17px; } }
+@media(max-width: 640px) { .sidebar-footer { display: block; border: 0; padding: 0; } .sidebar-footer small { display: none; } .sidebar-footer nav { margin-top: 0; } .sidebar-footer .nav-item span { display: none; } .login-card { padding: 25px; } }

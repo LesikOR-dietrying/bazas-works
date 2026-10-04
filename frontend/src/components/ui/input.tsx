@@ -1,0 +1,7 @@
+// Adapted from shadcn/ui's MIT-licensed input component.
+import type { ComponentProps } from 'react'
+import { cn } from '../../lib/utils'
+
+export function Input({ className, ...props }: ComponentProps<'input'>) {
+  return <input className={cn('form-input', className)} {...props} />
+}

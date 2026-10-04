@@ -1,0 +1,8 @@
+export type TrackingMode = 'SERIAL' | 'BATCH' | 'QUANTITY'
+export interface ProductCategory { id: string; code: string; name: string; description: string; is_active: boolean }
+export interface Product { id: string; code: string; name: string; category_id: string; category_name: string; description: string; lifecycle: 'DEVELOPMENT' | 'PRODUCTION' | 'DEPRECATED'; tracking_mode: TrackingMode; current_revision_id: string | null; general_image_attachment_id: string | null; created_at: string; updated_at: string }
+export interface ProductRevision { id: string; product_id: string; product_name: string; revision_code: string; status: 'DRAFT' | 'IN_REVIEW' | 'RELEASED' | 'RETIRED'; technical_characteristics: Record<string, unknown>; standard_cost: string | null; currency: string; revision_instructions: string; source_setup_id: string | null; released_at: string | null; created_at: string; updated_at: string }
+export interface BomItem { id: string; component_id: string; quantity: string; uom_id: string; position: string; sequence: number; required: boolean; notes: string }
+export interface ComponentOption { id: string; name: string; sku: string | null }
+export interface UnitOfMeasure { id: string; code: string; name: string; precision: number }
+export interface WorkerPreview { card: { title: string; description: string }; operations: Array<{ id: string; name: string; sequence: number; acceptance_criteria: string; blocks: Array<{ id: string; block_type: string; payload: Record<string, unknown> }>; checklist_items: Array<{ id: string; text: string; required: boolean }> }> }
