@@ -27,6 +27,8 @@ import { BranchDetail } from '../features/rnd/BranchDetail'
 import { ProductsPage } from '../features/products/ProductsPage'
 import { ProductDetail } from '../features/products/ProductDetail'
 import { ProductionPage } from '../features/production/ProductionPage'
+import { ProductionOrderDetail } from '../features/production/ProductionOrderDetail'
+import { OrdersPage } from '../features/production/OrdersPage'
 import { OrderDetail } from '../features/production/OrderDetail'
 import { WorkerItemPage } from '../features/production/WorkerItemPage'
 
@@ -53,12 +55,13 @@ export function App() {
           <Route path="products/:id" element={<ProductDetail />} />
         </Route>
         <Route element={<CapabilityGuard anyOf={['MANAGE_ORDERS', 'MANAGE_PROCUREMENT']} />}>
-          <Route path="orders" element={<ProductionPage />} />
+          <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:id" element={<OrderDetail />} />
           <Route path="inventory" element={<ModulePage title="Склад" description="Фізичні залишки, рухи та резервування компонентів." phase={7} />} />
         </Route>
         <Route element={<CapabilityGuard anyOf={['VIEW_PRODUCTION']} />}>
           <Route path="production" element={<ProductionPage />} />
+          <Route path="production/orders/:id/execution" element={<ProductionOrderDetail />} />
           <Route path="my-work" element={<MyWorkPage />} />
           <Route path="my-work/items/:id" element={<WorkerItemPage />} />
         </Route>

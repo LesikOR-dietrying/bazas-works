@@ -1,8 +1,11 @@
-from datetime import datetime
+from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.pagination import ListParams
+from app.modules.orders.models import OrderStatus
 from app.modules.production.models import ExecutionStatus
 
 
@@ -108,4 +111,25 @@ class OrderProgressRead(BaseModel):
     completed: int
     total: int
     percent: int
+    stages: list[StageProgressRead]
+
+
+class ProductionQueueFilters(ListParams):
+    status: Literal["PRODUCTION", "READY"] | None = None
+
+
+class ProductionQueueRead(BaseModel):
+    order_id: UUID
+    order_number: str
+    customer_name: str
+    deadline: date | None
+    status: OrderStatus
+    completed_quantity: int
+    planned_quantity: int
+    percent: int
+    active_operations: int
+    blocked_operations: int
+    assignees: list[str]
+    current_item_id: UUID | None
+    current_item_identifier: str | None
     stages: list[StageProgressRead]

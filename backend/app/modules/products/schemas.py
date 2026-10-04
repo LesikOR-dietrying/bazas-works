@@ -33,6 +33,7 @@ class ProductRead(ProductWrite):
     current_revision_id: UUID | None
     general_image_attachment_id: UUID | None
     category_name: str
+    variant_count: int
     created_at: datetime
     updated_at: datetime
 
@@ -52,10 +53,29 @@ class RevisionWrite(BaseModel):
     revision_instructions: str = Field(default="", max_length=50000)
 
 
+class VariantWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    code: str = Field(min_length=1, max_length=100)
+    name: str = Field(min_length=1, max_length=255)
+    description: str = Field(default="", max_length=20000)
+
+
+class VariantRead(VariantWrite):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    product_id: UUID
+    is_active: bool
+    current_revision_id: UUID | None
+    created_at: datetime
+    updated_at: datetime
+
+
 class RevisionRead(RevisionWrite):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     product_id: UUID
+    variant_id: UUID
+    variant_name: str
     product_name: str
     status: RevisionStatus
     source_project_id: UUID | None
@@ -80,6 +100,7 @@ class CloneRevisionWrite(BaseModel):
 class PromotionWrite(BaseModel):
     promotion_request_id: UUID
     revision_code: str = Field(min_length=1, max_length=100)
+    variant_id: UUID | None = None
 
 
 class BomItemWrite(BaseModel):

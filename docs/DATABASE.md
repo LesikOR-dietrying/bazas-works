@@ -1,8 +1,7 @@
 # Цільова модель PostgreSQL
 
-> Цей файл фіксує **поточну реалізовану схему `0001–0010`**. Нова цільова
-> Product/Production модель Phase 0 описана в [ARCHITECTURE.md](../ARCHITECTURE.md)
-> і ще не застосована до БД.
+> Цей файл фіксує **поточну реалізовану схему `0001–0012`**. Цільова модель і
+> подальші межі описані в [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 Реалізовано users/auth_sessions (0002), projects/project_members/tasks (0003),
 components/setups/setup_components/project_setups/firmware_revisions (0004),
@@ -146,6 +145,14 @@ revisions and firmware releases with one-owner enforcement.
 Component.default_uom_id is required. The migration seeds PCS, KG, M and L, backfills existing
 components with PCS, then makes the foreign key non-null. Released revision content is changed
 only by cloning a new draft.
+
+Migration `0012_product_variants` додає постійні комплектації каталогу між
+`products` і `product_revisions`. Для кожної наявної моделі створюється
+«Стандартна» комплектація; UUID версій, продуктів і посилання старих замовлень
+не змінюються. Composite FK `(product_id, variant_id)` не дозволяє прив'язати
+версію до комплектації іншої моделі. Кожна комплектація має власну чинну
+затверджену версію, а `Product.current_revision_id` тимчасово лишається для
+сумісності старих клієнтів.
 
 ## Phase 4 orders and procurement
 

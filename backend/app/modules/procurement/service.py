@@ -1,11 +1,11 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import DomainError
-from app.core.pagination import Page, paginate
+from app.core.pagination import Page, paginate, search_pattern
 from app.modules.components.models import Component
 from app.modules.orders.models import MaterialRequirement
 from app.modules.procurement.models import (
@@ -53,6 +53,15 @@ def create_supplier(session: Session, user: User, data: SupplierWrite) -> Suppli
 def records(session: Session, user: User, filters: ProcurementFilters) -> Page[ProcurementRecord]:
     _view(user)
     statement = select(ProcurementRecord)
+    if filters.q:
+        pattern = search_pattern(filters.q)
+        statement = statement.where(
+            or_(
+                ProcurementRecord.tracking_number.ilike(pattern),
+                ProcurementRecord.component.has(Component.name.ilike(pattern)),
+                ProcurementRecord.supplier.has(Supplier.name.ilike(pattern)),
+            )
+        )
     if filters.component_id:
         statement = statement.where(ProcurementRecord.component_id == filters.component_id)
     if filters.status:

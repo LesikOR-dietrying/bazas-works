@@ -1,15 +1,12 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
-import { QRCodeSVG } from 'qrcode.react'
 import { api, send } from '../../api/client'
 import { ErrorNotice, Field, Loading } from '../../components/Feedback'
 import { StatusBadge } from '../../components/StatusBadge'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
-import type { UserOption } from '../auth/types'
-import type { BomItem, ComponentOption, Deviation, MaterialSummary, Order, OrderItem, OrderProgress, OrderVariant, ProductionItem, Requirement, RevisionOption, StageExecution, WorkItem } from './types'
-import { labelForCode } from '../../lib/labels'
+import type { BomItem, ComponentOption, Deviation, MaterialSummary, Order, OrderItem, OrderProgress, OrderVariant, Requirement, RevisionOption } from './types'
 
 export function OrderDetail() {
   const { id = '' } = useParams(), cache = useQueryClient()
@@ -18,10 +15,7 @@ export function OrderDetail() {
   const revisions = useQuery({ queryKey: ['released-revisions'], queryFn: ({ signal }) => api<RevisionOption[]>('/orders/revision-options', { signal }) })
   const requirements = useQuery({ queryKey: ['requirements', id], queryFn: ({ signal }) => api<Requirement[]>(`/orders/${id}/requirements`, { signal }) })
   const materials = useQuery({ queryKey: ['materials', id], queryFn: ({ signal }) => api<MaterialSummary[]>(`/orders/${id}/materials`, { signal }) })
-  const productionItems = useQuery({ queryKey: ['production-items', id], queryFn: ({ signal }) => api<ProductionItem[]>(`/production/orders/${id}/items`, { signal }), enabled: order.data?.status === 'PRODUCTION' || order.data?.status === 'READY' })
   const progress = useQuery({ queryKey: ['production-progress', id], queryFn: ({ signal }) => api<OrderProgress>(`/production/orders/${id}/progress`, { signal }), enabled: order.data?.status === 'PRODUCTION' || order.data?.status === 'READY' })
-  const activeWork = useQuery({ queryKey: ['production-order-work', id], queryFn: ({ signal }) => api<WorkItem[]>(`/production/orders/${id}/work`, { signal }), enabled: order.data?.status === 'PRODUCTION' })
-  const users = useQuery({ queryKey: ['user-options'], queryFn: ({ signal }) => api<UserOption[]>('/users/options', { signal }), enabled: order.data?.status === 'PRODUCTION' })
   const transition = useMutation({ mutationFn: (status: string) => send<Order>(`/orders/${id}/status`, 'POST', { status }), onSuccess: async () => cache.invalidateQueries({ queryKey: ['order', id] }) })
   const launch = useMutation({ mutationFn: () => send<{ created_items: number }>(`/production/orders/${id}/launch`, 'POST'), onSuccess: async () => { await Promise.all([cache.invalidateQueries({ queryKey: ['order', id] }), cache.invalidateQueries({ queryKey: ['production-items', id] }), cache.invalidateQueries({ queryKey: ['production-progress', id] })]) } })
   if (order.isPending || items.isPending) return <Loading />
@@ -33,16 +27,8 @@ export function OrderDetail() {
     {order.data.status === 'DRAFT' && revisions.data && <AddItem orderId={id} revisions={revisions.data} />}
     <section><div className="section-heading"><h2>Позиції та варіанти</h2><span>{items.data?.length ?? 0}</span></div>{items.data?.map(item => <ItemCard key={item.id} item={item} orderId={id} />)}{!items.data?.length && <div className="empty-state"><p>Додайте першу позицію з затвердженої версії продукції.</p></div>}</section>
     <section><div className="section-heading"><h2>Забезпечення матеріалами</h2><span>{Math.round(totalCovered)} / {Math.round(totalRequired)}</span></div><div className="progress-block"><progress max={totalRequired || 1} value={totalCovered} /><span>Покрито {totalRequired ? Math.round(totalCovered / totalRequired * 100) : 0}% потреби</span></div>{materials.data && <div className="table-scroll"><table><thead><tr><th>Компонент</th><th>Потрібно</th><th>Замовлено</th><th>В дорозі</th><th>Не вистачає</th></tr></thead><tbody>{materials.data.map(row => <tr key={row.component_id}><td>{requirements.data?.find(req => req.component_id === row.component_id)?.component_name ?? 'Компонент'}</td><td>{row.required}</td><td>{row.ordered}</td><td>{row.in_transit}</td><td>{row.missing}</td></tr>)}</tbody></table></div>}</section>
-    {progress.data && <section><div className="section-heading"><h2>Прогрес виробництва</h2><span>{progress.data.percent}%</span></div><progress max={100} value={progress.data.percent} /><div className="stage-progress-grid">{progress.data.stages.map(stage => <div key={stage.stage_code}><strong>{stage.stage_name}</strong><span>{stage.completed} / {stage.total}</span><progress max={stage.total || 1} value={stage.completed} /></div>)}</div></section>}
-    {activeWork.data && <section><div className="section-heading"><h2>Активні операції</h2><span>{activeWork.data.length}</span></div><div className="table-scroll"><table><thead><tr><th>Виріб / партія</th><th>Етап</th><th>Статус</th><th>Виконавець</th></tr></thead><tbody>{activeWork.data.map(row => <tr key={row.execution.id}><td><Link className="record-link" to={`/my-work/items/${row.item.id}`}>{row.item.identifier}</Link></td><td>{row.execution.stage_name}</td><td><StatusBadge value={row.execution.status} /></td><td><AssignmentSelect execution={row.execution} users={users.data ?? []} orderId={id} /></td></tr>)}</tbody></table></div></section>}
-    {productionItems.data && <section className="print-area"><div className="section-heading"><h2>Одиниці, партії та QR</h2><Button onClick={() => window.print()}>Друкувати мітки</Button></div><div className="label-grid">{productionItems.data.map(item => <article className="qr-label" key={item.id}><QRCodeSVG value={`${window.location.origin}/my-work/items/${item.id}`} size={112} /><div><strong>{item.identifier}</strong><span>{item.product_name} · {item.revision_code}</span><span>{item.quantity} од. · {labelForCode(item.tracking_mode)}</span></div></article>)}</div></section>}
+    {progress.data && <section><div className="section-heading"><h2>Стан виробництва</h2><span>{progress.data.percent}%</span></div><div className="progress-block"><progress max={100} value={progress.data.percent} /><span>{progress.data.completed} з {progress.data.total} операцій виконано</span></div><Link className="record-link" to={`/production/orders/${id}/execution`}>Відкрити у виробництві →</Link></section>}
   </>
-}
-
-function AssignmentSelect({ execution, users, orderId }: { execution: StageExecution; users: UserOption[]; orderId: string }) {
-  const cache = useQueryClient()
-  const mutation = useMutation({ mutationFn: (assigned_user_id: string | null) => send<StageExecution>(`/production/executions/${execution.id}/assignment`, 'PATCH', { assigned_user_id }), onSuccess: async () => cache.invalidateQueries({ queryKey: ['production-order-work', orderId] }) })
-  return <select aria-label="Виконавець" className="form-input" value={execution.assigned_user_id ?? ''} onChange={e => mutation.mutate(e.target.value || null)} disabled={mutation.isPending}><option value="">Не призначено</option>{users.map(user => <option key={user.id} value={user.id}>{user.full_name}</option>)}</select>
 }
 
 function AddItem({ orderId, revisions }: { orderId: string; revisions: RevisionOption[] }) {

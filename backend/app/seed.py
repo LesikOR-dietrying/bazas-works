@@ -14,7 +14,13 @@ from app.modules.firmware.models import (  # noqa: F401
     FirmwareRelease,
     FirmwareRequirement,
 )
-from app.modules.products.models import Product, ProductRevision, RevisionStatus, TrackingMode
+from app.modules.products.models import (
+    Product,
+    ProductRevision,
+    ProductVariant,
+    RevisionStatus,
+    TrackingMode,
+)
 from app.modules.projects.models import Project, ProjectMember, ProjectStatus
 from app.modules.rnd.models import BranchConfiguration, RDBranch, RNDPromotionRequest  # noqa: F401
 from app.modules.routes.models import ProductionRoute, RouteStage, RouteStageDependency
@@ -180,12 +186,32 @@ def _route_template(
         )
         session.add(product)
         session.flush()
+    variant_id = seed_id(f"route-variant:{key}")
+    variant = session.get(ProductVariant, variant_id)
+    if variant is None:
+        variant = session.scalar(
+            select(ProductVariant).where(
+                ProductVariant.product_id == product.id,
+                ProductVariant.code == "STANDARD",
+            )
+        )
+    if variant is None:
+        variant = ProductVariant(
+            id=variant_id,
+            product_id=product.id,
+            code="STANDARD",
+            name="Стандартна",
+            description="Базова комплектація",
+        )
+        session.add(variant)
+        session.flush()
     revision_id = seed_id(f"route-revision:{key}")
     if session.get(ProductRevision, revision_id) is None:
         session.add(
             ProductRevision(
                 id=revision_id,
                 product_id=product.id,
+                variant_id=variant.id,
                 revision_code="TEMPLATE",
                 status=RevisionStatus.DRAFT,
                 created_by_id=creator_id,

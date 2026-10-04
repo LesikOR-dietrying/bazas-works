@@ -39,6 +39,7 @@ from app.modules.products.models import (  # noqa: F401
     ProductRevision,
     ProductRevisionBomItem,
     ProductRevisionDocument,
+    ProductVariant,
 )
 from app.modules.projects.models import Project, ProjectMember  # noqa: F401
 from app.modules.rnd.models import BranchConfiguration, RDBranch, RNDPromotionRequest  # noqa: F401

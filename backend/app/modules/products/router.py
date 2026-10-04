@@ -20,6 +20,8 @@ from app.modules.products.schemas import (
     RevisionRead,
     RevisionStatusWrite,
     RevisionWrite,
+    VariantRead,
+    VariantWrite,
 )
 
 router = APIRouter(prefix="/products", tags=["products"])
@@ -57,16 +59,34 @@ def revisions(product_id: UUID, session: Database, user: CurrentUser) -> object:
     return service.list_revisions(session, product_id, user)
 
 
+@router.get("/{product_id}/variants", response_model=list[VariantRead])
+def variants(product_id: UUID, session: Database, user: CurrentUser) -> object:
+    return service.list_variants(session, product_id, user)
+
+
+@router.post("/{product_id}/variants", response_model=VariantRead, status_code=201)
+def create_variant(
+    product_id: UUID, data: VariantWrite, session: Database, user: CurrentUser
+) -> object:
+    return service.create_variant(session, product_id, user, data)
+
+
 @router.post("/{product_id}/revisions", response_model=RevisionRead, status_code=201)
 def create_revision(
-    product_id: UUID, data: RevisionWrite, session: Database, user: CurrentUser
+    product_id: UUID,
+    data: RevisionWrite,
+    session: Database,
+    user: CurrentUser,
+    variant_id: UUID | None = None,
 ) -> object:
-    return service.create_revision(session, product_id, user, data)
+    return service.create_revision(session, product_id, user, data, variant_id)
 
 
 @router.post("/{product_id}/promote", response_model=RevisionRead, status_code=201)
 def promote(product_id: UUID, data: PromotionWrite, session: Database, user: CurrentUser) -> object:
-    return service.promote(session, product_id, user, data.promotion_request_id, data.revision_code)
+    return service.promote(
+        session, product_id, user, data.promotion_request_id, data.revision_code, data.variant_id
+    )
 
 
 @router.get("/revisions/{revision_id}", response_model=RevisionRead)
@@ -108,6 +128,17 @@ def add_bom(revision_id: UUID, data: BomItemWrite, session: Database, user: Curr
 @router.delete("/revisions/{revision_id}/bom/{item_id}", status_code=204)
 def delete_bom(revision_id: UUID, item_id: UUID, session: Database, user: CurrentUser) -> None:
     service.delete_bom(session, revision_id, item_id, user)
+
+
+@router.put("/revisions/{revision_id}/bom/{item_id}", response_model=BomItemRead)
+def update_bom(
+    revision_id: UUID,
+    item_id: UUID,
+    data: BomItemWrite,
+    session: Database,
+    user: CurrentUser,
+) -> object:
+    return service.update_bom(session, revision_id, item_id, user, data)
 
 
 @router.post("/bom/{item_id}/alternatives", response_model=AlternativeRead, status_code=201)
