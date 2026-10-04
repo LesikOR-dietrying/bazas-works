@@ -13,6 +13,7 @@ import { taskStatuses, isOverdue } from './types'
 import type { Task } from './types'
 import { FilesPanel } from '../collaboration/FilesPanel'
 import { CommentsPanel } from '../collaboration/CommentsPanel'
+import { labelForCode } from '../../lib/labels'
 
 export function TaskDetail() {
   const { id = '' } = useParams(), { data: user } = useSession(), cache = useQueryClient(), navigate = useNavigate()
@@ -33,6 +34,6 @@ const schema = z.object({ status: z.enum(taskStatuses), result: z.string().max(2
 function TaskResult({ task }: { task: Task }) {
   const cache = useQueryClient(), form = useForm<z.infer<typeof schema>>({ resolver: zodResolver(schema), defaultValues: { status: task.status, result: task.result } })
   const mutation = useMutation({ mutationFn: (values: z.infer<typeof schema>) => send<Task>(`/tasks/${task.id}`, 'PATCH', values), onSuccess: async (saved) => { cache.setQueryData(['task', task.id], saved); await cache.invalidateQueries({ queryKey: ['tasks'] }); await cache.invalidateQueries({ queryKey: ['task-summary'] }) } })
-  return <form className="form-panel form-stack" onSubmit={form.handleSubmit(values => mutation.mutate(values))}><h2>Статус і результат</h2><Field label="Статус задачі"><select className="form-input" {...form.register('status')}>{taskStatuses.map(s => <option key={s}>{s}</option>)}</select></Field><Field label="Результат виконання" error={form.formState.errors.result?.message}><textarea className="form-input" {...form.register('result')} /></Field><ErrorNotice error={mutation.error} /><Button type="submit" disabled={mutation.isPending}>Зберегти результат</Button></form>
+  return <form className="form-panel form-stack" onSubmit={form.handleSubmit(values => mutation.mutate(values))}><h2>Статус і результат</h2><Field label="Статус задачі"><select className="form-input" {...form.register('status')}>{taskStatuses.map(s => <option key={s} value={s}>{labelForCode(s)}</option>)}</select></Field><Field label="Результат виконання" error={form.formState.errors.result?.message}><textarea className="form-input" {...form.register('result')} /></Field><ErrorNotice error={mutation.error} /><Button type="submit" disabled={mutation.isPending}>Зберегти результат</Button></form>
 }
 

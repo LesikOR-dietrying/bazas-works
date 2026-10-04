@@ -12,6 +12,7 @@ import { hasCapability } from '../auth/types'
 import { useProject, useProjectOptions, useUserOptions } from '../projects/hooks'
 import { priorities, taskStatuses } from './types'
 import type { Task } from './types'
+import { labelForCode } from '../../lib/labels'
 
 const schema = z.object({ title: z.string().trim().min(1, 'Вкажіть назву задачі').max(255), description: z.string().max(20000),
   project_id: z.string().uuid('Оберіть проєкт'), branch_id: z.string(), assignee_id: z.string(), status: z.enum(taskStatuses), priority: z.enum(priorities), deadline: z.string(), result: z.string().max(20000) })
@@ -49,8 +50,8 @@ function TaskForm({ task }: { task?: Task }) {
     {project.data && <p className="page-description">Виконавець має бути учасником проєкту. <Link className="record-link" to={`/projects/${projectId}`}>Відкрити проєкт</Link></p>}
     {form.getValues('branch_id') && <p className="page-description">Задача належить R&D гілці. <Link className="record-link" to={`/rnd/branches/${form.getValues('branch_id')}`}>Відкрити гілку</Link></p>}
     <Field label="Опис" error={form.formState.errors.description?.message}><textarea className="form-input" {...form.register('description')} /></Field>
-    <div className="editor-grid"><Field label="Статус"><select className="form-input" {...form.register('status')}>{taskStatuses.map(s => <option key={s}>{s}</option>)}</select></Field>
-    <Field label="Пріоритет"><select className="form-input" {...form.register('priority')}>{priorities.map(p => <option key={p}>{p}</option>)}</select></Field></div>
+    <div className="editor-grid"><Field label="Статус"><select className="form-input" {...form.register('status')}>{taskStatuses.map(s => <option key={s} value={s}>{labelForCode(s)}</option>)}</select></Field>
+    <Field label="Пріоритет"><select className="form-input" {...form.register('priority')}>{priorities.map(p => <option key={p} value={p}>{labelForCode(p)}</option>)}</select></Field></div>
     <Field label="Строк виконання (місцевий час)"><Input type="datetime-local" {...form.register('deadline')} /></Field>
     <Field label="Результат" error={form.formState.errors.result?.message}><textarea className="form-input" {...form.register('result')} /></Field>
     <ErrorNotice error={mutation.error || projects.error || project.error || users.error} /><div className="form-actions"><Button type="submit" disabled={mutation.isPending || !project.data || users.isPending || users.isError}>Зберегти задачу</Button><Button asChild variant="outline"><Link to={task ? `/tasks/${task.id}` : '/tasks'}>Скасувати</Link></Button></div>

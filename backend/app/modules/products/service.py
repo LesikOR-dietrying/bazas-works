@@ -69,7 +69,7 @@ def get_product(session: Session, product_id: UUID, user: User, *, lock: bool = 
         statement = statement.with_for_update(of=Product)
     item = session.scalar(statement)
     if item is None:
-        raise DomainError(404, "Продукт не знайдено.")
+        raise DomainError(404, "Продукцію не знайдено.")
     return item
 
 
@@ -84,7 +84,7 @@ def _commit(session: Session, message: str) -> None:
 def create_product(session: Session, user: User, data: ProductWrite) -> Product:
     _edit(user)
     if session.get(ProductCategory, data.category_id) is None:
-        raise DomainError(422, "Категорію продукту не знайдено.")
+        raise DomainError(422, "Категорію продукції не знайдено.")
     product = Product(**data.model_dump(mode="json"))
     session.add(product)
     _commit(session, "Код продукту вже використовується.")
@@ -96,7 +96,7 @@ def update_product(session: Session, product_id: UUID, user: User, data: Product
     _edit(user)
     product = get_product(session, product_id, user, lock=True)
     if session.get(ProductCategory, data.category_id) is None:
-        raise DomainError(422, "Категорію продукту не знайдено.")
+        raise DomainError(422, "Категорію продукції не знайдено.")
     for key, value in data.model_dump(mode="json").items():
         setattr(product, key, value)
     _commit(session, "Код продукту вже використовується.")
@@ -124,13 +124,13 @@ def get_revision(
         statement = statement.with_for_update(of=ProductRevision)
     revision = session.scalar(statement)
     if revision is None:
-        raise DomainError(404, "Ревізію продукту не знайдено.")
+        raise DomainError(404, "Версію продукції не знайдено.")
     return revision
 
 
 def require_draft(revision: ProductRevision) -> None:
     if revision.status != RevisionStatus.DRAFT:
-        raise DomainError(409, "Змінювати вміст можна лише у чернетці ревізії.")
+        raise DomainError(409, "Змінювати вміст можна лише у чернетці версії.")
 
 
 def create_revision(
@@ -172,7 +172,7 @@ def transition_revision(
         RevisionStatus.RETIRED: set(),
     }
     if target not in allowed[RevisionStatus(revision.status)]:
-        raise DomainError(409, "Недопустимий перехід стану ревізії.")
+        raise DomainError(409, "Недопустимий перехід стану версії.")
     if target == RevisionStatus.RELEASED:
         require_capability(
             user, Capability.MANAGE_PROJECTS, "Випускати ревізії може керівник проєкту."
@@ -194,7 +194,7 @@ def promote(
     get_product(session, product_id, user)
     request = session.get(RNDPromotionRequest, request_id)
     if request is None or request.status != PromotionRequestStatus.APPROVED:
-        raise DomainError(409, "Promotion має бути схвалений у R&D.")
+        raise DomainError(409, "Передавання має бути схвалене в розробці.")
     revision = ProductRevision(
         product_id=product_id,
         revision_code=revision_code.strip(),
@@ -267,7 +267,7 @@ def delete_bom(session: Session, revision_id: UUID, item_id: UUID, user: User) -
         )
     )
     if row is None:
-        raise DomainError(404, "Рядок BOM не знайдено.")
+        raise DomainError(404, "Рядок специфікації не знайдено.")
     session.delete(row)
     session.commit()
 
@@ -278,7 +278,7 @@ def add_alternative(
     _edit(user)
     row = session.get(ProductRevisionBomItem, item_id)
     if row is None:
-        raise DomainError(404, "Рядок BOM не знайдено.")
+        raise DomainError(404, "Рядок специфікації не знайдено.")
     require_draft(get_revision(session, row.revision_id, user, lock=True))
     alternative = BomApprovedAlternative(bom_item_id=item_id, **data.model_dump(mode="json"))
     session.add(alternative)

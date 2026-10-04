@@ -12,6 +12,7 @@ import { hasCapability } from '../features/auth/types'
 import { useSession } from '../features/auth/useSession'
 import { SystemStatus } from '../features/system/SystemStatus'
 import type { TaskSummary } from '../features/tasks/types'
+import { labelForCode } from '../lib/labels'
 
 interface DashboardProject { id: string; name: string; status: string; responsible_name: string }
 interface DashboardSetup { id: string; name: string; version: string; status: string; updated_at: string }
@@ -32,7 +33,7 @@ function ProblemList({ title, items, empty }: { title: string; items: DashboardP
 }
 
 function SetupList({ title, items, tone }: { title: string; items: DashboardSetup[]; tone: 'development' | 'ready' }) {
-  return <section className="dashboard-panel"><PanelHeading eyebrow={tone === 'ready' ? 'READY' : 'IN DEVELOPMENT'} title={title} link="/setups" linkLabel="Усі" />{items.length ? <div className="dashboard-list">{items.map(item => <Link className="dashboard-list-row" to={`/setups/${item.id}`} key={item.id}><span className={`list-indicator ${tone}`} /><div className="list-copy"><strong>{item.name}</strong><small>Версія {item.version} · {new Date(item.updated_at).toLocaleDateString('uk-UA')}</small></div><StatusBadge value={item.status} /><ArrowUpRight size={14} /></Link>)}</div> : <div className="dashboard-empty">Сетапів у цьому стані немає.</div>}</section>
+  return <section className="dashboard-panel"><PanelHeading eyebrow={tone === 'ready' ? 'ГОТОВО' : 'У РОЗРОБЦІ'} title={title} link="/setups" linkLabel="Усі" />{items.length ? <div className="dashboard-list">{items.map(item => <Link className="dashboard-list-row" to={`/setups/${item.id}`} key={item.id}><span className={`list-indicator ${tone}`} /><div className="list-copy"><strong>{item.name}</strong><small>Версія {item.version} · {new Date(item.updated_at).toLocaleDateString('uk-UA')}</small></div><StatusBadge value={item.status} /><ArrowUpRight size={14} /></Link>)}</div> : <div className="dashboard-empty">Сетапів у цьому стані немає.</div>}</section>
 }
 
 export function DashboardPage() {
@@ -41,13 +42,13 @@ export function DashboardPage() {
   const today = new Intl.DateTimeFormat('uk-UA', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
   const quickLinks = [
     { path: '/tasks', label: 'Мої задачі', icon: ListChecks, visible: true },
-    { path: '/rnd', label: 'R&D', icon: FlaskConical, visible: true },
-    { path: '/products', label: 'Продукти', icon: Package, visible: hasCapability(user, 'VIEW_ENGINEERING') },
+    { path: '/rnd', label: 'Розробка', icon: FlaskConical, visible: true },
+    { path: '/products', label: 'Продукція', icon: Package, visible: hasCapability(user, 'VIEW_ENGINEERING') },
     { path: '/production', label: 'Виробництво', icon: Wrench, visible: hasCapability(user, 'VIEW_PRODUCTION') },
   ].filter(item => item.visible)
 
   return <div className="dashboard-page">
-    <header className="dashboard-hero-heading"><div><p className="eyebrow">BAZA / ОПЕРАЦІЙНИЙ ОГЛЯД</p><h1>Вітаємо, {user?.full_name?.split(' ')[0] || 'колего'}</h1><p className="page-description">{today.charAt(0).toUpperCase() + today.slice(1)}. Тут зібрано роботу, яка потребує вашої уваги.</p></div><nav className="dashboard-quick-links" aria-label="Швидкі переходи">{quickLinks.map(({ path, label, icon: Icon }) => <Link key={path} to={path}><Icon size={16} /><span>{label}</span></Link>)}</nav></header>
+    <header className="dashboard-hero-heading"><div><p className="eyebrow">ОГЛЯД РОБОТИ</p><h1>Вітаємо, {user?.full_name?.split(' ')[0] || 'колего'}</h1><p className="page-description">{today.charAt(0).toUpperCase() + today.slice(1)}. Тут зібрано роботу, яка потребує вашої уваги.</p></div><nav className="dashboard-quick-links" aria-label="Швидкі переходи">{quickLinks.map(({ path, label, icon: Icon }) => <Link key={path} to={path}><Icon size={16} /><span>{label}</span></Link>)}</nav></header>
 
     <ErrorNotice error={dashboard.error} />
     {dashboard.isPending && <Loading />}
@@ -62,11 +63,11 @@ export function DashboardPage() {
       </section>
 
       <div className="dashboard-primary-grid">
-        <section className="dashboard-panel dashboard-projects"><PanelHeading eyebrow="R&D PORTFOLIO" title="Активні проєкти" link="/projects" linkLabel="Усі проєкти" />{dashboard.data.active_projects.length ? <div className="project-overview-list">{dashboard.data.active_projects.map((item, index) => <Link to={`/projects/${item.id}`} className="project-overview-row" key={item.id}><span className="project-index">{String(index + 1).padStart(2, '0')}</span><div><strong>{item.name}</strong><small>Відповідальний: {item.responsible_name}</small></div><StatusBadge value={item.status} /><ArrowUpRight size={15} /></Link>)}</div> : <div className="dashboard-empty"><FolderKanban size={22} /><span>Активних доступних проєктів немає.</span></div>}</section>
+        <section className="dashboard-panel dashboard-projects"><PanelHeading eyebrow="ПРОЄКТИ РОЗРОБКИ" title="Активні проєкти" link="/projects" linkLabel="Усі проєкти" />{dashboard.data.active_projects.length ? <div className="project-overview-list">{dashboard.data.active_projects.map((item, index) => <Link to={`/projects/${item.id}`} className="project-overview-row" key={item.id}><span className="project-index">{String(index + 1).padStart(2, '0')}</span><div><strong>{item.name}</strong><small>Відповідальний: {item.responsible_name}</small></div><StatusBadge value={item.status} /><ArrowUpRight size={15} /></Link>)}</div> : <div className="dashboard-empty"><FolderKanban size={22} /><span>Активних доступних проєктів немає.</span></div>}</section>
         <ProblemList title="Заблоковані задачі" items={dashboard.data.blocked_tasks} empty="Заблокованих задач немає." />
       </div>
 
-      {dashboard.data.engineering && <section className="dashboard-engineering"><div className="dashboard-section-title"><div><span>ENGINEERING PULSE</span><h2>Стан розробки</h2></div><p>Конфігурації та останні результати випробувань</p></div><div className="dashboard-engineering-grid"><SetupList title="У розробці" items={dashboard.data.engineering.development_setups} tone="development" /><SetupList title="Готові конфігурації" items={dashboard.data.engineering.ready_setups} tone="ready" /><section className="dashboard-panel dashboard-tests"><PanelHeading eyebrow="TEST EVIDENCE" title="Останні випробування" link="/tests" linkLabel="Усі" />{dashboard.data.engineering.recent_tests.length ? <div className="dashboard-list">{dashboard.data.engineering.recent_tests.map(item => <Link className="dashboard-list-row" to={`/tests/${item.id}`} key={item.id}><span className="list-indicator test" /><div className="list-copy"><strong>{item.name}</strong><small>{item.test_type} · {item.test_date ? new Date(item.test_date).toLocaleDateString('uk-UA') : 'Заплановано'}</small></div><StatusBadge value={item.status} /><ArrowUpRight size={14} /></Link>)}</div> : <div className="dashboard-empty">Випробувань ще немає.</div>}</section><ProblemList title="Невдалі випробування" items={dashboard.data.engineering.failed_tests} empty="Невдалих випробувань немає." /></div></section>}
+      {dashboard.data.engineering && <section className="dashboard-engineering"><div className="dashboard-section-title"><div><span>СТАН РОЗРОБКИ</span><h2>Стан розробки</h2></div><p>Конфігурації та останні результати випробувань</p></div><div className="dashboard-engineering-grid"><SetupList title="У розробці" items={dashboard.data.engineering.development_setups} tone="development" /><SetupList title="Готові конфігурації" items={dashboard.data.engineering.ready_setups} tone="ready" /><section className="dashboard-panel dashboard-tests"><PanelHeading eyebrow="РЕЗУЛЬТАТИ ВИПРОБУВАНЬ" title="Останні випробування" link="/tests" linkLabel="Усі" />{dashboard.data.engineering.recent_tests.length ? <div className="dashboard-list">{dashboard.data.engineering.recent_tests.map(item => <Link className="dashboard-list-row" to={`/tests/${item.id}`} key={item.id}><span className="list-indicator test" /><div className="list-copy"><strong>{item.name}</strong><small>{labelForCode(item.test_type)} · {item.test_date ? new Date(item.test_date).toLocaleDateString('uk-UA') : 'Заплановано'}</small></div><StatusBadge value={item.status} /><ArrowUpRight size={14} /></Link>)}</div> : <div className="dashboard-empty">Випробувань ще немає.</div>}</section><ProblemList title="Невдалі випробування" items={dashboard.data.engineering.failed_tests} empty="Невдалих випробувань немає." /></div></section>}
     </>}
     <SystemStatus />
   </div>

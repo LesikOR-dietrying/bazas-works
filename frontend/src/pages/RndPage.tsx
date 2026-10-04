@@ -5,16 +5,16 @@ import { hasCapability } from '../features/auth/types'
 import { ProjectsPage } from '../features/projects/ProjectsPage'
 
 const sections = [
-  { path: '/projects', title: 'Проєкти', description: 'Команда, гілки, задачі та рішення.', meta: 'R&D CONTROL', icon: GitBranch },
-  { path: '/setups', title: 'Конфігурації', description: 'Експериментальні сетапи, BOM і прошивки.', meta: 'CONFIGURATIONS', icon: ClipboardCheck },
-  { path: '/components', title: 'Компоненти', description: 'Каталог і технічні характеристики.', meta: 'ENGINEERING LIBRARY', icon: Boxes },
-  { path: '/tests', title: 'Випробування', description: 'Плани, вимірювання, докази й висновки.', meta: 'EVIDENCE', icon: Microscope },
+  { path: '/projects', title: 'Проєкти', description: 'Команда, гілки, задачі та рішення.', meta: 'КЕРУВАННЯ РОЗРОБКОЮ', icon: GitBranch },
+  { path: '/setups', title: 'Конфігурації', description: 'Експериментальні конфігурації, специфікації і прошивки.', meta: 'КОНФІГУРАЦІЇ', icon: ClipboardCheck },
+  { path: '/components', title: 'Компоненти', description: 'Каталог і технічні характеристики.', meta: 'ІНЖЕНЕРНИЙ КАТАЛОГ', icon: Boxes },
+  { path: '/tests', title: 'Випробування', description: 'Плани, вимірювання, докази й висновки.', meta: 'РЕЗУЛЬТАТИ', icon: Microscope },
 ] as const
 
 export function RndPage() {
   const { data: user } = useSession()
   const visible = hasCapability(user, 'VIEW_ENGINEERING') ? sections : sections.slice(0, 1)
-  return <div className="rnd-workspace"><div className="page-heading rnd-heading"><div><p className="eyebrow">ENGINEERING WORKSPACE</p><h1>Дослідження та розробка</h1><p className="page-description">Керуйте інженерними рішеннями від першої гіпотези до перевіреної конфігурації, готової стати ревізією продукту.</p></div><span className="module-mark">R&D <small>01</small></span></div>
+  return <div className="rnd-workspace"><div className="page-heading rnd-heading"><div><p className="eyebrow">РОЗРОБКА</p><h1>Дослідження та розробка</h1><p className="page-description">Керуйте інженерними рішеннями від першої гіпотези до перевіреної конфігурації, готової стати версією продукції.</p></div><span className="module-mark">R&D <small>01</small></span></div>
     <section className="rnd-flow" aria-label="Процес дослідження та розробки">
       {['Проєкт', 'Гілка', 'Конфігурація', 'Докази'].map((step, index) => <div className="rnd-flow-step" key={step}><span>{String(index + 1).padStart(2, '0')}</span><strong>{step}</strong>{index < 3 && <ArrowRight size={16} aria-hidden="true" />}</div>)}
     </section>

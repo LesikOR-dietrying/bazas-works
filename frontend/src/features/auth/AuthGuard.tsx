@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Navigate, Outlet } from 'react-router-dom'
+import { Link, Navigate, Outlet } from 'react-router-dom'
 import { ErrorNotice, Loading } from '../../components/Feedback'
 import { Button } from '../../components/ui/button'
 import { useSession } from './useSession'
@@ -21,6 +21,11 @@ export function AuthGuard() {
 }
 
 export function AdminGuard() {
+  return <CapabilityGuard anyOf={['ADMIN_USERS']} />
+}
+
+export function CapabilityGuard({ anyOf }: { anyOf: readonly import('./types').Capability[] }) {
   const session = useSession()
-  return hasCapability(session.data, 'ADMIN_USERS') ? <Outlet /> : <section className="empty-state"><h1>Доступ обмежено</h1><p>Цей розділ доступний адміністратору.</p></section>
+  if (anyOf.some(capability => hasCapability(session.data, capability))) return <Outlet />
+  return <section className="empty-state access-denied" role="alert"><h1>Доступ обмежено</h1><p>У вашої ролі немає дозволу на перегляд цього розділу.</p><Link className="record-link" to="/">Повернутися на головну</Link></section>
 }

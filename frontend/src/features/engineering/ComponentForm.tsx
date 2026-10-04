@@ -9,6 +9,7 @@ import { Input } from '../../components/ui/input'
 import { useSession } from '../auth/useSession'
 import { canEditEngineering, useComponent } from './hooks'
 import { componentCategories } from './types'
+import { labelForCode } from '../../lib/labels'
 import type { Component, ComponentCategory } from './types'
 
 interface SpecRow { key: string; value: string; original?: unknown }
@@ -74,7 +75,7 @@ function ComponentForm({ component }: { component?: Component }) {
   ])
   const customSpecs = specs.map((row, index) => ({ row, index })).filter(({ row }) => !knownKeys.has(row.key))
   return <><div className="page-heading"><h1>{component ? 'Редагувати компонент' : 'Новий компонент'}</h1></div>
-    <form className="form-panel form-stack" onSubmit={submit}><div className="editor-grid"><Field label="Назва"><Input maxLength={255} required value={name} onChange={e => setName(e.target.value)} /></Field><Field label="Категорія"><select className="form-input" value={category} onChange={e => setCategory(e.target.value as ComponentCategory)}>{componentCategories.map(value => <option key={value}>{value}</option>)}</select></Field></div>
+    <form className="form-panel form-stack" onSubmit={submit}><div className="editor-grid"><Field label="Назва"><Input maxLength={255} required value={name} onChange={e => setName(e.target.value)} /></Field><Field label="Категорія"><select className="form-input" value={category} onChange={e => setCategory(e.target.value as ComponentCategory)}>{componentCategories.map(value => <option key={value} value={value}>{labelForCode(value)}</option>)}</select></Field></div>
       <div className="editor-grid"><Field label="Виробник"><Input maxLength={255} value={manufacturer} onChange={e => setManufacturer(e.target.value)} /></Field><Field label="Модель"><Input maxLength={255} value={model} onChange={e => setModel(e.target.value)} /></Field></div>
       <Field label="Опис"><textarea className="form-input" value={description} onChange={e => setDescription(e.target.value)} /></Field>
       {(category === 'MOTOR' || category === 'ESC') && <section><h2>{category === 'MOTOR' ? 'Характеристики двигуна' : 'Характеристики ESC'}</h2><div className="editor-grid">{(category === 'MOTOR' ? knownMotorSpecs : knownEscSpecs).map(spec => <Field key={spec.key} label={`${spec.label} (${spec.unit})`}><Input type="number" min="0" step="any" value={specs.find(row => row.key === spec.key)?.value ?? ''} onChange={e => setKnownSpec(spec.key, e.target.value)} /></Field>)}<Field label="Робоча напруга"><Input value={specs.find(row => row.key === 'voltage')?.value ?? ''} placeholder={category === 'MOTOR' ? 'Наприклад, 12S' : 'Наприклад, 6–12S'} onChange={e => setKnownSpec('voltage', e.target.value)} /></Field>{category === 'MOTOR' ? <Field label="Рекомендовані пропелери"><Input value={specs.find(row => row.key === 'recommended_propellers')?.value ?? ''} placeholder="15.5x5.8, 17x6" onChange={e => setKnownSpec('recommended_propellers', e.target.value)} /></Field> : <Field label="Прошивка ESC"><Input value={specs.find(row => row.key === 'firmware')?.value ?? ''} placeholder="Наприклад, AM32" onChange={e => setKnownSpec('firmware', e.target.value)} /></Field>}</div></section>}

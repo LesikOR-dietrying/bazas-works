@@ -108,7 +108,7 @@ def add_checklist(
     _edit(user)
     block = session.get(TechnologyContentBlock, block_id)
     if block is None or block.block_type != ContentBlockType.CHECKLIST:
-        raise DomainError(422, "Пункт можна додати лише до CHECKLIST блоку.")
+        raise DomainError(422, "Пункт можна додати лише до блоку чекліста.")
     operation = session.get(TechnologyOperation, block.operation_id)
     assert operation is not None
     card = session.get(TechnologyCard, operation.card_id)

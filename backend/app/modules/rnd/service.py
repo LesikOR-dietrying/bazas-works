@@ -68,7 +68,7 @@ def list_branches(session: Session, project_id: UUID, user: User) -> list[RDBran
 
 def _require_mutable(branch: RDBranch) -> None:
     if branch.status not in {BranchStatus.OPEN, BranchStatus.REJECTED}:
-        raise DomainError(409, "Змініть статус гілки на OPEN перед редагуванням.")
+        raise DomainError(409, "Перед редагуванням поверніть гілку у стан «Відкрито».")
 
 
 def _validate_responsible(session: Session, project_id: UUID, user_id: UUID) -> None:
@@ -238,7 +238,7 @@ def unlink_configuration(session: Session, branch_id: UUID, link_id: UUID, user:
             RNDPromotionRequest.candidate_setup_id == link.setup_id,
         )
     ):
-        raise DomainError(409, "Конфігурація вже використана в запиті на promotion.")
+        raise DomainError(409, "Конфігурація вже використана в запиті на передавання.")
     session.delete(link)
     session.commit()
 
@@ -263,7 +263,7 @@ def compare_configurations(
     baseline = next((item for item in links if item.role == ConfigurationRole.BASELINE), None)
     candidate = next((item for item in links if item.setup_id == candidate_setup_id), None)
     if baseline is None or candidate is None or candidate.role != ConfigurationRole.CANDIDATE:
-        raise DomainError(422, "Для порівняння потрібні baseline і вибраний candidate.")
+        raise DomainError(422, "Для порівняння потрібні базова конфігурація і вибраний кандидат.")
     legacy_fields = (
         "drone_class",
         "weight_kg",
@@ -363,7 +363,7 @@ def request_promotion(
         )
         is None
     ):
-        raise DomainError(422, "Оберіть candidate-конфігурацію цієї гілки.")
+        raise DomainError(422, "Оберіть конфігурацію-кандидата цієї гілки.")
     request = RNDPromotionRequest(
         branch_id=branch_id,
         candidate_setup_id=data.candidate_setup_id,
@@ -385,10 +385,10 @@ def review_promotion(
         user, Capability.MANAGE_PROJECTS, "Розглядати promotion може керівник проєкту."
     )
     if data.status not in {PromotionRequestStatus.APPROVED, PromotionRequestStatus.REJECTED}:
-        raise DomainError(422, "Оберіть APPROVED або REJECTED.")
+        raise DomainError(422, "Оберіть стан «Погоджено» або «Відхилено».")
     request = session.get(RNDPromotionRequest, request_id)
     if request is None:
-        raise DomainError(404, "Запит на promotion не знайдено.")
+        raise DomainError(404, "Запит на передавання не знайдено.")
     branch = get_branch(session, request.branch_id, user, lock=True)
     request = session.scalar(
         select(RNDPromotionRequest)

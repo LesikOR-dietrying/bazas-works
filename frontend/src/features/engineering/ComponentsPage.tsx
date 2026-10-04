@@ -10,6 +10,7 @@ import { Input } from '../../components/ui/input'
 import { useSession } from '../auth/useSession'
 import { canEditEngineering } from './hooks'
 import { componentCategories } from './types'
+import { labelForCode } from '../../lib/labels'
 import type { Component } from './types'
 
 export function ComponentsPage() {
@@ -22,7 +23,7 @@ export function ComponentsPage() {
   if (!canEditEngineering(user)) return <ErrorNotice error={new Error('Каталог компонентів доступний інженерам, менеджерам та адміністраторам.')} />
   return <><div className="page-heading"><div><p className="eyebrow">ІНЖЕНЕРНИЙ КАТАЛОГ</p><h1>Компоненти</h1><p className="page-description">Спільні записи комплектуючих для різних конфігурацій.</p></div><Button asChild><Link to="/components/new">Новий компонент</Link></Button></div>
     <div className="filters"><Input aria-label="Пошук компонентів" placeholder="Назва, виробник або модель" value={q} onChange={e => { setQ(e.target.value); setPage(1) }} />
-      <select aria-label="Категорія компонента" className="form-input" value={category} onChange={e => { setCategory(e.target.value); setPage(1) }}><option value="">Усі категорії</option>{componentCategories.map(c => <option key={c}>{c}</option>)}</select>
+      <select aria-label="Категорія компонента" className="form-input" value={category} onChange={e => { setCategory(e.target.value); setPage(1) }}><option value="">Усі категорії</option>{componentCategories.map(c => <option key={c} value={c}>{labelForCode(c)}</option>)}</select>
       <select aria-label="Сортування компонентів" className="form-input" value={sort} onChange={e => { setSort(e.target.value); setPage(1) }}><option value="updated_at">За оновленням</option><option value="name">За назвою</option><option value="manufacturer">За виробником</option><option value="category">За категорією</option></select>
       <Button variant="outline" onClick={() => { setDirection(direction === 'asc' ? 'desc' : 'asc'); setPage(1) }}>{direction === 'asc' ? '↑ За зростанням' : '↓ За спаданням'}</Button></div>
     <ErrorNotice error={components.error} />{components.isPending && <Loading />}

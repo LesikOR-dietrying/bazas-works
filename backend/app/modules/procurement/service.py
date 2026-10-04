@@ -81,15 +81,11 @@ _STATUS_TRANSITIONS: dict[ProcurementStatus, frozenset[ProcurementStatus]] = {
     ProcurementStatus.ORDERED: frozenset(
         {ProcurementStatus.PAID, ProcurementStatus.IN_TRANSIT, ProcurementStatus.ISSUE}
     ),
-    ProcurementStatus.PAID: frozenset(
-        {ProcurementStatus.IN_TRANSIT, ProcurementStatus.ISSUE}
-    ),
+    ProcurementStatus.PAID: frozenset({ProcurementStatus.IN_TRANSIT, ProcurementStatus.ISSUE}),
     ProcurementStatus.IN_TRANSIT: frozenset(
         {ProcurementStatus.CUSTOMS, ProcurementStatus.RECEIVED, ProcurementStatus.ISSUE}
     ),
-    ProcurementStatus.CUSTOMS: frozenset(
-        {ProcurementStatus.RECEIVED, ProcurementStatus.ISSUE}
-    ),
+    ProcurementStatus.CUSTOMS: frozenset({ProcurementStatus.RECEIVED, ProcurementStatus.ISSUE}),
     ProcurementStatus.RECEIVED: frozenset(),
     ProcurementStatus.ISSUE: frozenset(
         {
@@ -119,7 +115,7 @@ def transition_status(
     if target == current:
         return record
     if target not in _STATUS_TRANSITIONS[current]:
-        raise DomainError(409, f"Перехід закупівлі {current.value} → {target.value} заборонено.")
+        raise DomainError(409, "Недопустимий перехід статусу закупівлі.")
     record.status = target
     session.commit()
     session.refresh(record)

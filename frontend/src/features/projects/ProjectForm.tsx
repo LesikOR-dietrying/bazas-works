@@ -10,6 +10,7 @@ import { Input } from '../../components/ui/input'
 import { useSession } from '../auth/useSession'
 import { hasCapability } from '../auth/types'
 import { useProject, useUserOptions } from './hooks'
+import { labelForCode } from '../../lib/labels'
 import { projectStatuses } from './types'
 import type { Project } from './types'
 
@@ -35,7 +36,7 @@ function ProjectForm({ project }: { project?: Project }) {
   for (const person of project?.participants ?? []) if (!options.some(item => item.id === person.id)) options.push(person)
   return <><div className="page-heading"><h1>{project ? 'Редагувати проєкт' : 'Новий проєкт'}</h1></div><form className="form-panel form-stack" onSubmit={form.handleSubmit(values => mutation.mutate(values))}>
     <Field label="Назва" error={form.formState.errors.name?.message}><Input {...form.register('name')} /></Field>
-    <div className="editor-grid"><Field label="Статус"><select className="form-input" {...form.register('status')}>{projectStatuses.map(s => <option key={s}>{s}</option>)}</select></Field>
+    <div className="editor-grid"><Field label="Статус"><select className="form-input" {...form.register('status')}>{projectStatuses.map(s => <option key={s} value={s}>{labelForCode(s)}</option>)}</select></Field>
     <Field label="Відповідальний" error={form.formState.errors.responsible_user_id?.message}><select className="form-input" {...form.register('responsible_user_id')}><option value="">Оберіть відповідального</option>{options.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}</select></Field></div>
     <Field label="Опис" error={form.formState.errors.description?.message}><textarea className="form-input" {...form.register('description')} /></Field>
     <Field label="Мета" error={form.formState.errors.goal?.message}><textarea className="form-input" {...form.register('goal')} /></Field>

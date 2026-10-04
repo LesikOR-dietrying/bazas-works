@@ -152,7 +152,7 @@ def launch_order(session: Session, order_id: UUID, user: User) -> LaunchRead:
     if existing:
         return LaunchRead(order_id=order_id, created_items=0)
     if order.status != OrderStatus.MATERIALS:
-        raise DomainError(409, "Запуск дозволений лише зі статусу MATERIALS.")
+        raise DomainError(409, "Запуск дозволений лише зі стану «Забезпечення матеріалами».")
     variants = list(
         session.scalars(
             select(OrderVariant)
