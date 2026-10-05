@@ -86,7 +86,7 @@ function Promotions({ branch, canEdit, canReview }: { branch: RndBranch; canEdit
   const products = useQuery({ queryKey: ['products-for-promotion'], enabled: Boolean(promotionId), queryFn: ({ signal }) => api<Page<Product>>('/products?page=1&page_size=100', { signal }) })
   const variants = useQuery({ queryKey: ['product-variants', productId], enabled: Boolean(productId), queryFn: ({ signal }) => api<ProductVariant[]>(`/products/${productId}/variants`, { signal }) })
   const revisions = useQuery({ queryKey: ['product-revisions', productId], enabled: Boolean(productId), queryFn: ({ signal }) => api<ProductRevision[]>(`/products/${productId}/revisions`, { signal }) })
-  const promote = useMutation({ mutationFn: () => send<ProductRevision>(`/products/${productId}/promote`, 'POST', { promotion_request_id: promotionId, revision_code: revisionCode.trim(), variant_id: variantId || null }), onSuccess: revision => { void cache.invalidateQueries({ queryKey: ['product-revisions', productId] }); navigate(`/products/${revision.product_id}`) } })
+  const promote = useMutation({ mutationFn: () => send<ProductRevision>(`/products/${productId}/promote`, 'POST', { promotion_request_id: promotionId, revision_code: revisionCode.trim(), variant_id: variantId || null }), onSuccess: revision => { void cache.invalidateQueries({ queryKey: ['product-revisions', productId] }); const params = new URLSearchParams({ variant: revision.variant_id, revision: revision.id, tab: 'specification' }); navigate(`/products/${revision.product_id}?${params}`) } })
   const chooseProduct = (value: string) => { setProductId(value); setVariantId(''); setRevisionCode('') }
   const suggestCode = (value: string) => {
     setVariantId(value)

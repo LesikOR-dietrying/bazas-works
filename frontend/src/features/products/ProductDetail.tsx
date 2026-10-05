@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { api, send } from '../../api/client'
 import { ErrorNotice, Field, Loading } from '../../components/Feedback'
 import { StatusBadge } from '../../components/StatusBadge'
@@ -16,7 +16,9 @@ import { FirmwarePanel, RoutesPanel, TechnologyPanel } from './ProductDefinition
 
 const tabs = ['Огляд', 'Версії', 'Специфікація', 'Технологічна карта', 'Прошивки', 'Виробничий маршрут', 'Документи'] as const
 export function ProductDetail() {
-  const { id = '' } = useParams(), [tab, setTab] = useState<(typeof tabs)[number]>('Огляд'), [selected, setSelected] = useState(''), [selectedVariant, setSelectedVariant] = useState('')
+  const { id = '' } = useParams(), [params] = useSearchParams()
+  const initialTab = params.get('tab') === 'specification' ? 'Специфікація' : 'Огляд'
+  const [tab, setTab] = useState<(typeof tabs)[number]>(initialTab), [selected, setSelected] = useState(params.get('revision') ?? ''), [selectedVariant, setSelectedVariant] = useState(params.get('variant') ?? '')
   const product = useQuery({ queryKey: ['product', id], queryFn: ({ signal }) => api<Product>(`/products/${id}`, { signal }) })
   const variants = useQuery({ queryKey: ['product-variants', id], queryFn: ({ signal }) => api<ProductVariant[]>(`/products/${id}/variants`, { signal }) })
   const revisions = useQuery({ queryKey: ['product-revisions', id], queryFn: ({ signal }) => api<ProductRevision[]>(`/products/${id}/revisions`, { signal }) })
