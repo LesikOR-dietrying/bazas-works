@@ -128,12 +128,15 @@ class RequirementRead(BaseModel):
 
 class MaterialSummary(BaseModel):
     component_id: UUID
+    component_name: str
+    uom_id: UUID
+    uom_code: str
     required: Decimal
-    available: Decimal = Decimal(0)
-    reserved: Decimal = Decimal(0)
+    received: Decimal
     ordered: Decimal
     in_transit: Decimal
-    missing: Decimal
+    uncovered: Decimal
+    launch_shortage: Decimal
 
 
 class ReleasedRevisionOption(BaseModel):

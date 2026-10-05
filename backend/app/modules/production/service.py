@@ -16,6 +16,7 @@ from app.modules.orders.models import (
     OrderVariant,
     VariantStatus,
 )
+from app.modules.orders.service import material_summary
 from app.modules.production.models import (
     ExecutionStatus,
     ProductionItem,
@@ -271,6 +272,15 @@ def launch_order(session: Session, order_id: UUID, user: User) -> LaunchRead:
         return LaunchRead(order_id=order_id, created_items=0)
     if order.status != OrderStatus.MATERIALS:
         raise DomainError(409, "Запуск дозволений лише зі стану «Забезпечення матеріалами».")
+    shortages = [
+        row for row in material_summary(session, order_id, user) if row.launch_shortage > 0
+    ]
+    if shortages:
+        details = ", ".join(
+            f"{row.component_name}: бракує {row.launch_shortage} {row.uom_code}"
+            for row in shortages
+        )
+        raise DomainError(409, f"Матеріали фізично не готові до запуску. {details}")
     variants = list(
         session.scalars(
             select(OrderVariant)

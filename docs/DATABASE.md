@@ -1,6 +1,6 @@
 # Цільова модель PostgreSQL
 
-> Цей файл фіксує **поточну реалізовану схему `0001–0013`**. Цільова модель і
+> Цей файл фіксує **поточну реалізовану схему `0001–0014`**. Цільова модель і
 > подальші межі описані в [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 Реалізовано users/auth_sessions (0002), projects/project_members/tasks (0003),
@@ -173,6 +173,11 @@ clients cannot submit requirement or missing values.
 Migration `0013_order_draft_version` adds a positive `orders.draft_version` with a compatible
 default for existing rows. Every composition or deviation change increments it. Confirmation
 compares the client's expected value under a row lock and rejects stale drafts.
+
+Migration `0014_procurement_uom` backfills the component default UOM into every existing
+procurement record and adds a required foreign key. Allocations must match component and UOM,
+cannot exceed either the procurement quantity or the target requirement, and a RECEIVED
+allocation is the only pre-inventory source of physical launch readiness.
 
 ## Phase 5 production execution
 

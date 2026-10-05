@@ -437,17 +437,24 @@ def requirements(session: Session, order_id: UUID, user: User) -> list[MaterialR
 def material_summary(session: Session, order_id: UUID, user: User) -> list[MaterialSummary]:
     rows = requirements(session, order_id, user)
     result = []
-    for component_id in sorted({r.component_id for r in rows}, key=str):
-        required = sum(
-            (r.required_quantity for r in rows if r.component_id == component_id), Decimal(0)
-        )
+    keys = sorted({(row.component_id, row.uom_id) for row in rows}, key=lambda key: str(key))
+    for component_id, uom_id in keys:
+        matching = [
+            row for row in rows if row.component_id == component_id and row.uom_id == uom_id
+        ]
+        required = sum((row.required_quantity for row in matching), Decimal(0))
         allocations = session.execute(
             select(ProcurementAllocation.quantity, ProcurementRecord.status)
             .join(ProcurementRecord)
             .join(MaterialRequirement)
             .join(OrderVariant)
             .join(OrderItem)
-            .where(OrderItem.order_id == order_id, MaterialRequirement.component_id == component_id)
+            .where(
+                OrderItem.order_id == order_id,
+                MaterialRequirement.component_id == component_id,
+                MaterialRequirement.uom_id == uom_id,
+                ProcurementRecord.uom_id == uom_id,
+            )
         ).all()
         ordered = sum(
             (q for q, s in allocations if s in {ProcurementStatus.ORDERED, ProcurementStatus.PAID}),
@@ -461,13 +468,24 @@ def material_summary(session: Session, order_id: UUID, user: User) -> list[Mater
             ),
             Decimal(0),
         )
+        received = sum(
+            (q for q, status in allocations if status == ProcurementStatus.RECEIVED), Decimal(0)
+        )
+        uom = session.get(UnitOfMeasure, uom_id)
+        if uom is None:
+            raise DomainError(409, "Одиницю виміру потреби не знайдено.")
         result.append(
             MaterialSummary(
                 component_id=component_id,
+                component_name=matching[0].component_name,
+                uom_id=uom_id,
+                uom_code=uom.code,
                 required=required,
+                received=received,
                 ordered=ordered,
                 in_transit=transit,
-                missing=max(Decimal(0), required - ordered - transit),
+                uncovered=max(Decimal(0), required - received - ordered - transit),
+                launch_shortage=max(Decimal(0), required - received),
             )
         )
     return result

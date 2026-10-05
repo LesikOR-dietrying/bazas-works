@@ -6,15 +6,16 @@ export interface RevisionOption { id: string; product_id: string; product_name: 
 export interface OrderItem { id: string; order_id: string; product_id: string; product_revision_id: string; product_name: string; revision_code: string; quantity: number; required_date: string | null; notes: string }
 export interface OrderVariant { id: string; order_item_id: string; name: string; quantity: number; is_standard: boolean; status: VariantStatus; notes: string }
 export interface Deviation { id: string; variant_id: string; original_bom_item_id: string; replacement_component_id: string; quantity_per_product: string; reason: string; approved_at: string | null }
-export interface Requirement { id: string; component_id: string; component_name: string; required_quantity: string }
-export interface MaterialSummary { component_id: string; required: string; available: string; reserved: string; ordered: string; in_transit: string; missing: string }
+export interface Requirement { id: string; component_id: string; component_name: string; uom_id: string; required_quantity: string }
+export interface MaterialSummary { component_id: string; component_name: string; uom_id: string; uom_code: string; required: string; received: string; ordered: string; in_transit: string; uncovered: string; launch_shortage: string }
 export interface RequirementPreviewAlternative { component_id: string; component_name: string; component_sku: string | null; notes: string }
 export interface RequirementPreviewRow { bom_item_id: string; position: string; component_id: string; component_name: string; component_sku: string | null; quantity_per_product: string; total_quantity: string; uom_id: string; uom_code: string; alternatives: RequirementPreviewAlternative[] }
 export interface BomItem { id: string; component_id: string; quantity: string; position: string }
 export interface ComponentOption { id: string; name: string; sku: string | null }
 export interface Supplier { id: string; name: string }
 export type ProcurementStatus = 'REQUIRED' | 'RFQ' | 'ORDERED' | 'PAID' | 'IN_TRANSIT' | 'CUSTOMS' | 'RECEIVED' | 'ISSUE'
-export interface ProcurementRecord { id: string; component_id: string; component_name: string; supplier_id: string | null; supplier_name: string | null; quantity: string; status: ProcurementStatus; expected_date: string | null; tracking_number: string }
+export interface ProcurementRecord { id: string; component_id: string; component_name: string; uom_id: string; uom_code: string; supplier_id: string | null; supplier_name: string | null; quantity: string; status: ProcurementStatus; expected_date: string | null; tracking_number: string }
+export interface ProcurementAllocation { id: string; procurement_record_id: string; requirement_id: string; quantity: string }
 export type ExecutionStatus = 'WAITING' | 'READY' | 'IN_PROGRESS' | 'PASSED' | 'FAILED' | 'CANCELLED'
 export interface ProductionItem { id: string; identifier: string; tracking_mode: string; quantity: number; variant_id: string; variant_name: string; product_name: string; revision_code: string; order_number: string; qr_value: string }
 export interface StageExecution { id: string; production_item_id: string; stage_id: string; stage_code: string; stage_name: string; planned_quantity: number; completed_quantity: number; status: ExecutionStatus; assigned_user_id: string | null; started_at: string | null; completed_at: string | null; result_note: string }

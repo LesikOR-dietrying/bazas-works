@@ -71,11 +71,16 @@ def records(session: Session, user: User, filters: ProcurementFilters) -> Page[P
 
 def create_record(session: Session, user: User, data: ProcurementWrite) -> ProcurementRecord:
     _manage(user)
-    if session.get(Component, data.component_id) is None:
+    component = session.get(Component, data.component_id)
+    if component is None:
         raise DomainError(422, "Компонент не знайдено.")
     if data.supplier_id and session.get(Supplier, data.supplier_id) is None:
         raise DomainError(422, "Постачальника не знайдено.")
-    row = ProcurementRecord(created_by_id=user.id, **data.model_dump(mode="json"))
+    row = ProcurementRecord(
+        created_by_id=user.id,
+        uom_id=component.default_uom_id,
+        **data.model_dump(mode="json"),
+    )
     session.add(row)
     session.commit()
     session.refresh(row)
@@ -135,12 +140,22 @@ def allocate(
     session: Session, record_id: UUID, user: User, data: AllocationWrite
 ) -> ProcurementAllocation:
     _manage(user)
-    record = session.get(ProcurementRecord, record_id)
-    requirement = session.get(MaterialRequirement, data.requirement_id)
+    record = session.scalar(
+        select(ProcurementRecord)
+        .where(ProcurementRecord.id == record_id)
+        .with_for_update(of=ProcurementRecord)
+    )
+    requirement = session.scalar(
+        select(MaterialRequirement)
+        .where(MaterialRequirement.id == data.requirement_id)
+        .with_for_update(of=MaterialRequirement)
+    )
     if record is None or requirement is None:
         raise DomainError(404, "Закупівлю або потребу не знайдено.")
     if record.component_id != requirement.component_id:
         raise DomainError(422, "Компонент закупівлі не відповідає потребі.")
+    if record.uom_id != requirement.uom_id:
+        raise DomainError(422, "Одиниця виміру закупівлі не відповідає потребі.")
     allocated = session.scalar(
         select(func.coalesce(func.sum(ProcurementAllocation.quantity), 0)).where(
             ProcurementAllocation.procurement_record_id == record_id
@@ -148,6 +163,13 @@ def allocate(
     )
     if allocated + data.quantity > record.quantity:
         raise DomainError(409, "Розподіл перевищує кількість закупівлі.")
+    requirement_allocated = session.scalar(
+        select(func.coalesce(func.sum(ProcurementAllocation.quantity), 0)).where(
+            ProcurementAllocation.requirement_id == requirement.id
+        )
+    )
+    if requirement_allocated + data.quantity > requirement.required_quantity:
+        raise DomainError(409, "Розподіл перевищує кількість потреби замовлення.")
     row = ProcurementAllocation(procurement_record_id=record_id, **data.model_dump(mode="json"))
     session.add(row)
     session.commit()

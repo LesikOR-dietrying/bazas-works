@@ -1,7 +1,7 @@
 # План реалізації за CODEX_PRODUCT_SPEC
 
-> Статус: доменні Phase 0–5 та етапи rework 0–4 реалізовано. Поточний застосунок
-> і migrations `0001–0013` є робочим additive baseline.
+> Статус: доменні Phase 0–5 та етапи rework 0–5 реалізовано. Поточний застосунок
+> і migrations `0001–0014` є робочим additive baseline.
 
 ## Phase 0 — Architecture (proposal complete)
 

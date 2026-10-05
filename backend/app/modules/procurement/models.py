@@ -46,6 +46,9 @@ class ProcurementRecord(Identity, Timestamps, Base):
     component_id: Mapped[UUID] = mapped_column(
         ForeignKey("components.id", ondelete="RESTRICT"), index=True
     )
+    uom_id: Mapped[UUID] = mapped_column(
+        ForeignKey("units_of_measure.id", ondelete="RESTRICT"), index=True
+    )
     supplier_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("suppliers.id", ondelete="RESTRICT"), index=True
     )
@@ -64,6 +67,7 @@ class ProcurementRecord(Identity, Timestamps, Base):
     notes: Mapped[str] = mapped_column(Text, default="", server_default="")
     created_by_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     component = relationship("Component", lazy="joined")
+    uom = relationship("UnitOfMeasure", lazy="joined")
     supplier = relationship("Supplier", lazy="joined")
 
     @property
@@ -73,6 +77,10 @@ class ProcurementRecord(Identity, Timestamps, Base):
     @property
     def supplier_name(self) -> str | None:
         return self.supplier.name if self.supplier else None
+
+    @property
+    def uom_code(self) -> str:
+        return self.uom.code
 
 
 class ProcurementAllocation(Identity, Base):

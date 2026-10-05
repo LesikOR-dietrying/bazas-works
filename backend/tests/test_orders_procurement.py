@@ -309,7 +309,41 @@ def test_order_variants_deviation_requirements_and_procurement(
     replacement_summary = next(row for row in materials if row["component_id"] == replacement["id"])
     assert Decimal(replacement_summary["ordered"]) == Decimal("0")
     assert Decimal(replacement_summary["in_transit"]) == Decimal("40")
-    assert Decimal(replacement_summary["missing"]) == Decimal("0")
+    assert Decimal(replacement_summary["received"]) == Decimal("0")
+    assert Decimal(replacement_summary["uncovered"]) == Decimal("0")
+    assert Decimal(replacement_summary["launch_shortage"]) == Decimal("40")
+
+    duplicate_allocation = auth_client.post(
+        f"/api/procurement/{procurement['id']}/allocations",
+        headers=headers,
+        json={"requirement_id": str(replacement_requirement.id), "quantity": "1"},
+    )
+    assert duplicate_allocation.status_code == 409
+
+    received = auth_client.post(
+        f"/api/procurement/{procurement['id']}/status",
+        headers=headers,
+        json={"status": "RECEIVED"},
+    )
+    assert received.status_code == 200, received.text
+    received_materials = auth_client.get(f"/api/orders/{order['id']}/materials").json()
+    replacement_received = next(
+        row for row in received_materials if row["component_id"] == replacement["id"]
+    )
+    assert Decimal(replacement_received["received"]) == Decimal("40")
+    assert Decimal(replacement_received["ordered"]) == Decimal("0")
+    assert Decimal(replacement_received["in_transit"]) == Decimal("0")
+    assert Decimal(replacement_received["launch_shortage"]) == Decimal("0")
+
+    materials_status = auth_client.post(
+        f"/api/orders/{order['id']}/status", headers=headers, json={"status": "MATERIALS"}
+    )
+    assert materials_status.status_code == 200, materials_status.text
+    blocked_launch = auth_client.post(
+        f"/api/production/orders/{order['id']}/launch", headers=headers
+    )
+    assert blocked_launch.status_code == 409
+    assert "Матеріали фізично не готові" in blocked_launch.json()["detail"]
 
 
 def test_employee_cannot_view_orders(auth_client: TestClient, accounts: dict[str, User]) -> None:

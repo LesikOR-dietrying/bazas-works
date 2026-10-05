@@ -39,6 +39,8 @@ class ProcurementRead(ProcurementWrite):
     id: UUID
     created_by_id: UUID
     component_name: str
+    uom_id: UUID
+    uom_code: str
     supplier_name: str | None
     created_at: datetime
     updated_at: datetime
