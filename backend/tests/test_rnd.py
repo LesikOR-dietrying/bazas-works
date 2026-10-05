@@ -128,6 +128,12 @@ def test_rnd_branch_comparison_scope_and_promotion(
     assert reviewed.status_code == 200, reviewed.text
     assert reviewed.json()["status"] == "APPROVED"
     assert auth_client.get(f"/api/rnd/branches/{branch['id']}").json()["status"] == "APPROVED"
+    reopen = auth_client.post(
+        f"/api/rnd/branches/{branch['id']}/transition",
+        headers=headers,
+        json={"status": "OPEN"},
+    )
+    assert reopen.status_code == 409
 
 
 def test_branch_must_match_task_project(auth_client: TestClient, accounts: dict[str, User]) -> None:
@@ -147,6 +153,13 @@ def test_branch_must_match_task_project(auth_client: TestClient, accounts: dict[
         headers=headers,
         json={"name": "main", "responsible_user_id": manager_id},
     ).json()
+    for status in ("IN_REVIEW", "APPROVED", "OPEN"):
+        transition = auth_client.post(
+            f"/api/rnd/branches/{branch['id']}/transition",
+            headers=headers,
+            json={"status": status},
+        )
+        assert transition.status_code == 200, transition.text
     response = auth_client.post(
         "/api/tasks",
         headers=headers,

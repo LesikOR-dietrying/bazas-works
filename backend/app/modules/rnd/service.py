@@ -143,7 +143,7 @@ ALLOWED_TRANSITIONS = {
         BranchStatus.CLOSED,
     },
     BranchStatus.REJECTED: {BranchStatus.OPEN, BranchStatus.CLOSED},
-    BranchStatus.APPROVED: {BranchStatus.CLOSED},
+    BranchStatus.APPROVED: {BranchStatus.OPEN, BranchStatus.CLOSED},
     BranchStatus.CLOSED: set(),
 }
 
@@ -156,6 +156,15 @@ def transition_branch(
     current = BranchStatus(branch.status)
     if data.status not in ALLOWED_TRANSITIONS[current]:
         raise DomainError(409, f"Перехід {current} → {data.status} недоступний.")
+    if current == BranchStatus.APPROVED and data.status == BranchStatus.OPEN:
+        approved_request = session.scalar(
+            select(RNDPromotionRequest.id).where(
+                RNDPromotionRequest.branch_id == branch.id,
+                RNDPromotionRequest.status == PromotionRequestStatus.APPROVED,
+            )
+        )
+        if approved_request is not None:
+            raise DomainError(409, "Схвалене передавання вже зафіксовано; створіть нову R&D гілку.")
     if data.status in {BranchStatus.APPROVED, BranchStatus.REJECTED}:
         require_capability(
             user, Capability.MANAGE_PROJECTS, "Рішення може прийняти керівник проєкту."
