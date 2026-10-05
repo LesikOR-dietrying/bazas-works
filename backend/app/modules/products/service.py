@@ -246,6 +246,8 @@ def transition_revision(
     }
     if target not in allowed[RevisionStatus(revision.status)]:
         raise DomainError(409, "Недопустимий перехід стану версії.")
+    if target in {RevisionStatus.IN_REVIEW, RevisionStatus.RELEASED}:
+        _validate_revision_definition(session, revision)
     if target == RevisionStatus.RELEASED:
         require_capability(
             user, Capability.MANAGE_PROJECTS, "Випускати ревізії може керівник проєкту."
@@ -259,6 +261,92 @@ def transition_revision(
     session.commit()
     session.refresh(revision)
     return revision
+
+
+def _validate_revision_definition(session: Session, revision: ProductRevision) -> None:
+    """Validate configured production definitions without requiring firmware universally."""
+    from app.modules.routes.models import (
+        ProductionRoute,
+        RouteStage,
+        RouteStageDependency,
+        RouteStageRole,
+    )
+    from app.modules.technology.models import (
+        TechnologyCard,
+        TechnologyContentBlock,
+        TechnologyOperation,
+    )
+
+    card = session.scalar(select(TechnologyCard).where(TechnologyCard.revision_id == revision.id))
+    routes = list(
+        session.scalars(select(ProductionRoute).where(ProductionRoute.revision_id == revision.id))
+    )
+    if card is not None and not routes:
+        raise DomainError(409, "Для технологічної карти потрібно налаштувати виробничий маршрут.")
+    for route in routes:
+        stages = list(session.scalars(select(RouteStage).where(RouteStage.route_id == route.id)))
+        if not stages:
+            raise DomainError(409, f"Маршрут «{route.name}» не містить етапів.")
+        stage_ids = {stage.id for stage in stages}
+        role_stage_ids = set(
+            session.scalars(
+                select(RouteStageRole.stage_id).where(RouteStageRole.stage_id.in_(stage_ids))
+            )
+        )
+        for stage in stages:
+            if stage.id not in role_stage_ids:
+                raise DomainError(409, f"Для етапу «{stage.name}» не призначено роль виконавця.")
+            if stage.technology_operation_id is None:
+                if not stage.instructions.strip():
+                    raise DomainError(
+                        409, f"Для етапу «{stage.name}» потрібна операція або інструкція."
+                    )
+                continue
+            operation = session.get(TechnologyOperation, stage.technology_operation_id)
+            if operation is None or card is None or operation.card_id != card.id:
+                raise DomainError(
+                    409, f"Технологічна операція етапу «{stage.name}» належить іншій версії."
+                )
+            if stage.attachment_required:
+                attachment = session.scalar(
+                    select(TechnologyContentBlock.id).where(
+                        TechnologyContentBlock.operation_id == operation.id,
+                        TechnologyContentBlock.attachment_id.is_not(None),
+                    )
+                )
+                if attachment is None:
+                    raise DomainError(409, f"Для етапу «{stage.name}» потрібен документ або фото.")
+        edges = list(
+            session.execute(
+                select(RouteStageDependency.predecessor_id, RouteStageDependency.stage_id).where(
+                    RouteStageDependency.stage_id.in_(stage_ids)
+                )
+            ).all()
+        )
+        if _has_route_cycle(stage_ids, edges):
+            raise DomainError(409, f"Маршрут «{route.name}» містить циклічну залежність.")
+
+
+def _has_route_cycle(nodes: set[UUID], edges: list[tuple[UUID, UUID]]) -> bool:
+    graph: dict[UUID, set[UUID]] = {}
+    for source, target in edges:
+        graph.setdefault(source, set()).add(target)
+    visited: set[UUID] = set()
+    active: set[UUID] = set()
+
+    def visit(node: UUID) -> bool:
+        if node in active:
+            return True
+        if node in visited:
+            return False
+        visited.add(node)
+        active.add(node)
+        if any(visit(child) for child in graph.get(node, set())):
+            return True
+        active.remove(node)
+        return False
+
+    return any(visit(node) for node in nodes)
 
 
 def promote(

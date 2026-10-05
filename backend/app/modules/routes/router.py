@@ -8,12 +8,18 @@ from app.modules.routes.schemas import (
     DependencyRead,
     DependencyWrite,
     RouteRead,
+    RouteRoleRead,
     RouteWrite,
     StageRead,
     StageWrite,
 )
 
 router = APIRouter(prefix="/production-routes", tags=["production-routes"])
+
+
+@router.get("/roles", response_model=list[RouteRoleRead])
+def roles(session: Database, user: CurrentUser) -> object:
+    return service.available_roles(session, user)
 
 
 @router.get("/revisions/{revision_id}", response_model=list[RouteRead])

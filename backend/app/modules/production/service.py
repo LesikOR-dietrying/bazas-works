@@ -31,6 +31,7 @@ from app.modules.production.schemas import (
     ContentBlockRead,
     ExecutionDetailRead,
     ExecutionRead,
+    FirmwareFileRead,
     LaunchRead,
     OrderProgressRead,
     ProductionItemRead,
@@ -225,6 +226,28 @@ def _eligible(session: Session, execution: StageExecution, user: User) -> bool:
     if execution.assigned_user_id is not None and execution.assigned_user_id != user.id:
         return False
     return _role_eligible(session, execution.stage_id, user)
+
+
+def can_view_revision_files(session: Session, revision_id: UUID, user: User) -> bool:
+    if not has_capability(user, Capability.VIEW_PRODUCTION):
+        return False
+    candidates = session.scalars(
+        select(StageExecution)
+        .join(ProductionItem, ProductionItem.id == StageExecution.production_item_id)
+        .join(OrderVariant, OrderVariant.id == ProductionItem.variant_id)
+        .join(OrderItem, OrderItem.id == OrderVariant.order_item_id)
+        .where(OrderItem.product_revision_id == revision_id)
+    ).all()
+    return any(_eligible(session, execution, user) for execution in candidates)
+
+
+def can_view_firmware_release_files(session: Session, release_id: UUID, user: User) -> bool:
+    from app.modules.firmware.models import FirmwareRequirement
+
+    revision_ids = session.scalars(
+        select(FirmwareRequirement.revision_id).where(FirmwareRequirement.release_id == release_id)
+    ).all()
+    return any(can_view_revision_files(session, revision_id, user) for revision_id in revision_ids)
 
 
 def _role_eligible(session: Session, stage_id: UUID, user: User) -> bool:
@@ -449,6 +472,21 @@ def execution_detail(session: Session, execution_id: UUID, user: User) -> Execut
                     .order_by(ChecklistTemplateItem.sequence)
                 )
             )
+    revision_id = session.scalar(
+        select(OrderItem.product_revision_id)
+        .join(OrderVariant, OrderVariant.order_item_id == OrderItem.id)
+        .where(OrderVariant.id == row.item.variant_id)
+    )
+    assert revision_id is not None
+    from app.modules.firmware.models import FirmwareArtifact, FirmwareRelease, FirmwareRequirement
+
+    firmware_rows = session.execute(
+        select(FirmwareRequirement, FirmwareRelease, FirmwareArtifact)
+        .join(FirmwareRelease, FirmwareRelease.id == FirmwareRequirement.release_id)
+        .join(FirmwareArtifact, FirmwareArtifact.id == FirmwareRelease.artifact_id)
+        .where(FirmwareRequirement.revision_id == revision_id)
+        .order_by(FirmwareRequirement.created_at)
+    ).all()
     return ExecutionDetailRead(
         item=_item_read(session, row.item),
         execution=_execution_read(row),
@@ -458,6 +496,18 @@ def execution_detail(session: Session, execution_id: UUID, user: User) -> Execut
         acceptance_criteria=operation.acceptance_criteria if operation else "",
         blocks=[ContentBlockRead.model_validate(block, from_attributes=True) for block in blocks],
         checklist=checklist,
+        firmware=[
+            FirmwareFileRead(
+                purpose=requirement.purpose,
+                artifact_name=artifact.name,
+                release_version=release.version,
+                description=release.description,
+                config_text=release.config_text,
+                binary_attachment_id=release.binary_attachment_id,
+                config_attachment_id=release.config_attachment_id,
+            )
+            for requirement, release, artifact in firmware_rows
+        ],
     )
 
 

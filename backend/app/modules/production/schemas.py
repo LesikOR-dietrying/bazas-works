@@ -74,6 +74,8 @@ class ChecklistTemplateRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    block_id: UUID
+    sequence: int
     text: str
     required: bool
     note_required: bool
@@ -82,10 +84,23 @@ class ChecklistTemplateRead(BaseModel):
 
 class ContentBlockRead(BaseModel):
     id: UUID
+    operation_id: UUID
     block_type: str
     sequence: int
     payload: dict[str, object]
     attachment_id: UUID | None
+    annotation_source: dict[str, object]
+    annotation_version: int
+
+
+class FirmwareFileRead(BaseModel):
+    purpose: str
+    artifact_name: str
+    release_version: str
+    description: str
+    config_text: str
+    binary_attachment_id: UUID | None
+    config_attachment_id: UUID | None
 
 
 class ExecutionDetailRead(BaseModel):
@@ -97,6 +112,7 @@ class ExecutionDetailRead(BaseModel):
     acceptance_criteria: str
     blocks: list[ContentBlockRead]
     checklist: list[ChecklistTemplateRead]
+    firmware: list[FirmwareFileRead]
 
 
 class StageProgressRead(BaseModel):

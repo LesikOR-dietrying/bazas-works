@@ -10,7 +10,7 @@ from app.modules.setups.service import get_setup
 from app.modules.tasks.queries import get_task
 from app.modules.tests.service import get_test
 from app.modules.users.models import User
-from app.modules.users.permissions import Capability, has_capability, require_capability
+from app.modules.users.permissions import Capability, has_capability
 
 OWNER_FIELDS = (
     "project_id",
@@ -55,15 +55,23 @@ def authorize_owner(session: Session, user: User, owners: dict[str, UUID | None]
     elif field == "product_revision_id":
         from app.modules.products.service import get_revision
 
-        get_revision(session, owner_id, user)
+        if has_capability(user, Capability.VIEW_ENGINEERING):
+            get_revision(session, owner_id, user)
+        else:
+            from app.modules.production.service import can_view_revision_files
+
+            if not can_view_revision_files(session, owner_id, user):
+                raise DomainError(404, "Файл не знайдено.")
     elif field == "firmware_release_id":
-        require_capability(
-            user, Capability.VIEW_ENGINEERING, "Недостатньо прав для файлів прошивки."
-        )
         from app.modules.firmware.models import FirmwareRelease
 
         if session.get(FirmwareRelease, owner_id) is None:
             raise DomainError(404, "Реліз прошивки не знайдено.")
+        if not has_capability(user, Capability.VIEW_ENGINEERING):
+            from app.modules.production.service import can_view_firmware_release_files
+
+            if not can_view_firmware_release_files(session, owner_id, user):
+                raise DomainError(404, "Файл не знайдено.")
     elif field == "stage_execution_id":
         from app.modules.production.service import _get_execution
 

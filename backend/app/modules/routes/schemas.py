@@ -30,6 +30,12 @@ class StageWrite(BaseModel):
     role_ids: list[UUID] = Field(default_factory=list)
 
 
+class RouteRoleRead(BaseModel):
+    id: UUID
+    code: str
+    name: str
+
+
 class StageRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
@@ -42,6 +48,8 @@ class StageRead(BaseModel):
     measurement_required: bool
     attachment_required: bool
     instructions: str
+    roles: list[RouteRoleRead] = Field(default_factory=list)
+    predecessor_ids: list[UUID] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

@@ -1,4 +1,5 @@
 from datetime import date
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -159,8 +160,9 @@ def _make_employee_assembler(db: Session, employee: User) -> None:
 
 
 def test_serial_stage_workflow_unlocks_dependencies_and_is_idempotent(
-    auth_client: TestClient, accounts: dict[str, User], db: Session
+    auth_client: TestClient, accounts: dict[str, User], db: Session, tmp_path: Path
 ) -> None:
+    auth_client.app.state.settings.storage_directory = tmp_path
     manager = accounts[Role.MANAGER]
     employee = accounts[Role.EMPLOYEE]
     _make_employee_assembler(db, employee)
@@ -185,6 +187,23 @@ def test_serial_stage_workflow_unlocks_dependencies_and_is_idempotent(
     assert queue["items"][0]["active_operations"] == 2
     assert queue["items"][0]["blocked_operations"] == 2
     assert queue["items"][0]["current_item_id"] in {item["id"] for item in items}
+    revision_id = db.scalar(
+        select(OrderItem.product_revision_id).where(OrderItem.order_id == order.id)
+    )
+    assert revision_id is not None
+    diagram = auth_client.post(
+        "/api/files",
+        headers=manager_headers,
+        data={"product_revision_id": str(revision_id)},
+        files={"upload": ("diagram.png", b"png-content", "image/png")},
+    )
+    assert diagram.status_code == 201, diagram.text
+    block = db.scalar(
+        select(TechnologyContentBlock).where(TechnologyContentBlock.attachment_id.is_(None))
+    )
+    assert block is not None
+    block.attachment_id = diagram.json()["id"]
+    db.commit()
 
     employee_headers = sign_in(auth_client, "EMPLOYEE")
     work = auth_client.get("/api/production/my-work").json()
@@ -192,6 +211,9 @@ def test_serial_stage_workflow_unlocks_dependencies_and_is_idempotent(
     execution_id = work[0]["execution"]["id"]
     detail = auth_client.get(f"/api/production/executions/{execution_id}").json()
     assert detail["checklist"][0]["text"] == "Fasteners checked"
+    assert detail["blocks"][0]["attachment_id"] == diagram.json()["id"]
+    inline = auth_client.get(f"/api/files/{diagram.json()['id']}/content")
+    assert inline.status_code == 200 and inline.headers["content-type"].startswith("image/png")
     started = auth_client.post(
         f"/api/production/executions/{execution_id}/start", headers=employee_headers
     )

@@ -53,6 +53,11 @@ def requirement(
     return service.add_requirement(session, revision_id, user, data)
 
 
+@router.delete("/requirements/item/{requirement_id}", status_code=204)
+def delete_requirement(requirement_id: UUID, session: Database, user: CurrentUser) -> None:
+    service.delete_requirement(session, requirement_id, user)
+
+
 @router.get("", response_model=Page[FirmwareRead])
 def list_firmware(
     session: Database, user: CurrentUser, filters: Annotated[FirmwareFilters, Query()]

@@ -11,7 +11,7 @@ from app.modules.routes.models import (
     RouteStageDependency,
     RouteStageRole,
 )
-from app.modules.routes.schemas import RouteWrite, StageWrite
+from app.modules.routes.schemas import RouteRoleRead, RouteWrite, StageRead, StageWrite
 from app.modules.users.models import RoleDefinition, User
 from app.modules.users.permissions import Capability, require_capability
 
@@ -44,14 +44,62 @@ def create_route(
     return row
 
 
-def stages(session: Session, route_id: UUID, user: User) -> list[RouteStage]:
+def stages(session: Session, route_id: UUID, user: User) -> list[StageRead]:
     route = session.get(ProductionRoute, route_id)
     if route is None:
         raise DomainError(404, "Маршрут не знайдено.")
     get_revision(session, route.revision_id, user)
-    return list(
+    rows = list(
         session.scalars(
             select(RouteStage).where(RouteStage.route_id == route_id).order_by(RouteStage.sequence)
+        )
+    )
+    stage_ids = [row.id for row in rows]
+    role_rows = (
+        session.execute(
+            select(RouteStageRole.stage_id, RoleDefinition)
+            .join(RoleDefinition, RoleDefinition.id == RouteStageRole.role_id)
+            .where(RouteStageRole.stage_id.in_(stage_ids))
+            .order_by(RoleDefinition.name)
+        ).all()
+        if stage_ids
+        else []
+    )
+    dependencies = (
+        session.execute(
+            select(RouteStageDependency.stage_id, RouteStageDependency.predecessor_id).where(
+                RouteStageDependency.stage_id.in_(stage_ids)
+            )
+        ).all()
+        if stage_ids
+        else []
+    )
+    roles_by_stage: dict[UUID, list[RouteRoleRead]] = {stage_id: [] for stage_id in stage_ids}
+    predecessors: dict[UUID, list[UUID]] = {stage_id: [] for stage_id in stage_ids}
+    for stage_id, role in role_rows:
+        roles_by_stage[stage_id].append(RouteRoleRead(id=role.id, code=role.code, name=role.name))
+    for stage_id, predecessor_id in dependencies:
+        predecessors[stage_id].append(predecessor_id)
+    return [
+        StageRead.model_validate(
+            {
+                **{
+                    column.name: getattr(row, column.name)
+                    for column in RouteStage.__table__.columns
+                },
+                "roles": roles_by_stage[row.id],
+                "predecessor_ids": predecessors[row.id],
+            }
+        )
+        for row in rows
+    ]
+
+
+def available_roles(session: Session, user: User) -> list[RoleDefinition]:
+    require_capability(user, Capability.VIEW_ENGINEERING, "Недостатньо прав для перегляду ролей.")
+    return list(
+        session.scalars(
+            select(RoleDefinition).where(RoleDefinition.is_active).order_by(RoleDefinition.name)
         )
     )
 

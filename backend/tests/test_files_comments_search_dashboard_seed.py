@@ -92,6 +92,10 @@ def test_authorized_upload_download_comments_and_isolation(
     assert download.status_code == 200 and download.content == b"bench result"
     assert download.headers["content-disposition"].startswith("attachment;")
     assert download.headers["x-content-type-options"] == "nosniff"
+    inline = auth_client.get(f"/api/files/{attachment['id']}/content")
+    assert inline.status_code == 200 and inline.content == b"bench result"
+    assert inline.headers["content-type"].startswith("text/plain")
+    assert inline.headers["content-disposition"].startswith("inline;")
 
     hidden_upload = auth_client.post(
         "/api/files",
@@ -103,6 +107,7 @@ def test_authorized_upload_download_comments_and_isolation(
     employee_headers = sign_in(auth_client, "EMPLOYEE")
     assert auth_client.get(f"/api/files/{attachment['id']}/download").status_code == 200
     assert auth_client.get(f"/api/files/{hidden_upload.json()['id']}/download").status_code == 404
+    assert auth_client.get(f"/api/files/{hidden_upload.json()['id']}/content").status_code == 404
     comment = auth_client.post(
         "/api/comments",
         headers=employee_headers,

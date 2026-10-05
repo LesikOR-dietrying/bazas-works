@@ -91,6 +91,24 @@ def download_file(
     )
 
 
+@router.get("/{attachment_id}/content")
+def view_file(
+    attachment_id: UUID, session: Database, user: CurrentUser, settings: Configuration
+) -> StreamingResponse:
+    attachment = service.get_file(session, attachment_id, user)
+    stream = storage(settings).open(attachment.storage_path)
+    encoded = quote(attachment.original_filename, safe="")
+    return StreamingResponse(
+        service.stream_file(stream),
+        media_type=attachment.mime_type or "application/octet-stream",
+        headers={
+            "Content-Disposition": f"inline; filename=view; filename*=UTF-8''{encoded}",
+            "Content-Length": str(attachment.size),
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @router.delete("/{attachment_id}", status_code=204)
 def delete_file(
     attachment_id: UUID, session: Database, user: CurrentUser, settings: Configuration

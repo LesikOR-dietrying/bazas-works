@@ -72,3 +72,14 @@ class RequirementRead(RequirementWrite):
     revision_id: UUID
     created_at: datetime
     updated_at: datetime
+    artifact_id: UUID
+    artifact_name: str
+    artifact_description: str
+    release_version: str
+    firmware_type: str
+    upstream_version: str
+    release_description: str
+    config_text: str
+    checksum: str
+    binary_attachment_id: UUID | None
+    config_attachment_id: UUID | None

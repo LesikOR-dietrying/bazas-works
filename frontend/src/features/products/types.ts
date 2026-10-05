@@ -6,4 +6,14 @@ export interface ProductRevision { id: string; product_id: string; product_name:
 export interface BomItem { id: string; component_id: string; quantity: string; uom_id: string; position: string; sequence: number; required: boolean; notes: string }
 export interface ComponentOption { id: string; name: string; sku: string | null }
 export interface UnitOfMeasure { id: string; code: string; name: string; precision: number }
-export interface WorkerPreview { card: { title: string; description: string }; operations: Array<{ id: string; name: string; sequence: number; acceptance_criteria: string; blocks: Array<{ id: string; block_type: string; payload: Record<string, unknown> }>; checklist_items: Array<{ id: string; text: string; required: boolean }> }> }
+export type ContentBlockType = 'TEXT' | 'IMAGE' | 'CHECKLIST' | 'WARNING' | 'FILE' | 'ANNOTATED_IMAGE' | 'MEASUREMENT' | 'VIDEO'
+export interface TechnologyBlock { id: string; operation_id: string; block_type: ContentBlockType; sequence: number; payload: Record<string, unknown>; attachment_id: string | null; annotation_source: Record<string, unknown>; annotation_version: number }
+export interface ChecklistItem { id: string; block_id: string; text: string; sequence: number; required: boolean; note_required: boolean; photo_required: boolean }
+export interface TechnologyOperation { id: string; card_id: string; name: string; sequence: number; expected_result: string; acceptance_criteria: string; blocks: TechnologyBlock[]; checklist_items: ChecklistItem[] }
+export interface WorkerPreview { card: { id: string; revision_id: string; title: string; description: string }; operations: TechnologyOperation[] }
+export interface FirmwareArtifact { id: string; name: string; description: string }
+export interface FirmwareRelease { id: string; artifact_id: string; version: string; firmware_type: string; upstream_version: string; description: string; config_text: string; checksum: string; binary_attachment_id: string | null; config_attachment_id: string | null }
+export interface FirmwareRequirement { id: string; revision_id: string; release_id: string; purpose: string; notes: string; configuration: Record<string, unknown>; artifact_id: string; artifact_name: string; artifact_description: string; release_version: string; firmware_type: string; upstream_version: string; release_description: string; config_text: string; checksum: string; binary_attachment_id: string | null; config_attachment_id: string | null }
+export interface RouteRole { id: string; code: string; name: string }
+export interface ProductionRoute { id: string; revision_id: string; version: number; name: string; description: string }
+export interface RouteStage { id: string; route_id: string; code: string; name: string; sequence: number; technology_operation_id: string | null; supports_pass_fail: boolean; measurement_required: boolean; attachment_required: boolean; instructions: string; roles: RouteRole[]; predecessor_ids: string[] }

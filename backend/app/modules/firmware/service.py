@@ -18,6 +18,7 @@ from app.modules.firmware.schemas import (
     FirmwareFilters,
     FirmwareWrite,
     ReleaseWrite,
+    RequirementRead,
     RequirementWrite,
 )
 from app.modules.products.service import get_revision, require_draft
@@ -110,20 +111,42 @@ def create_release(
     return row
 
 
-def requirements(session: Session, revision_id: UUID, user: User) -> list[FirmwareRequirement]:
+def requirements(session: Session, revision_id: UUID, user: User) -> list[RequirementRead]:
     get_revision(session, revision_id, user)
-    return list(
-        session.scalars(
-            select(FirmwareRequirement)
-            .where(FirmwareRequirement.revision_id == revision_id)
-            .order_by(FirmwareRequirement.created_at)
+    rows = session.execute(
+        select(FirmwareRequirement, FirmwareRelease, FirmwareArtifact)
+        .join(FirmwareRelease, FirmwareRelease.id == FirmwareRequirement.release_id)
+        .join(FirmwareArtifact, FirmwareArtifact.id == FirmwareRelease.artifact_id)
+        .where(FirmwareRequirement.revision_id == revision_id)
+        .order_by(FirmwareRequirement.created_at)
+    ).all()
+    return [
+        RequirementRead.model_validate(
+            {
+                **{
+                    column.name: getattr(requirement, column.name)
+                    for column in FirmwareRequirement.__table__.columns
+                },
+                "artifact_id": artifact.id,
+                "artifact_name": artifact.name,
+                "artifact_description": artifact.description,
+                "release_version": release.version,
+                "firmware_type": release.firmware_type,
+                "upstream_version": release.upstream_version,
+                "release_description": release.description,
+                "config_text": release.config_text,
+                "checksum": release.checksum,
+                "binary_attachment_id": release.binary_attachment_id,
+                "config_attachment_id": release.config_attachment_id,
+            }
         )
-    )
+        for requirement, release, artifact in rows
+    ]
 
 
 def add_requirement(
     session: Session, revision_id: UUID, user: User, data: RequirementWrite
-) -> FirmwareRequirement:
+) -> RequirementRead:
     require_capability(user, Capability.MANAGE_ENGINEERING, "Недостатньо прав для прошивок.")
     revision = get_revision(session, revision_id, user, lock=True)
     require_draft(revision)
@@ -133,4 +156,14 @@ def add_requirement(
     session.add(row)
     session.commit()
     session.refresh(row)
-    return row
+    return next(item for item in requirements(session, revision_id, user) if item.id == row.id)
+
+
+def delete_requirement(session: Session, requirement_id: UUID, user: User) -> None:
+    require_capability(user, Capability.MANAGE_ENGINEERING, "Недостатньо прав для прошивок.")
+    row = session.get(FirmwareRequirement, requirement_id)
+    if row is None:
+        raise DomainError(404, "Вимогу до прошивки не знайдено.")
+    require_draft(get_revision(session, row.revision_id, user, lock=True))
+    session.delete(row)
+    session.commit()
